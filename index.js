@@ -234,5 +234,16 @@ async function enviarMensagem(chatId, texto, teclado) {
 // =====================================================
 // INICIA O SERVIDOR
 // =====================================================
+
+
 const PORT = process.env.PORT || 3000;
+
+// Mantém o servidor acordado — ping a cada 14 minutos
+const https = require("https");
+setInterval(() => {
+  https.get("https://seguranca-sao-sebastiao.onrender.com/ping");
+}, 14 * 60 * 1000);
+
+app.get("/ping", (req, res) => res.send("ok"));
+
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
