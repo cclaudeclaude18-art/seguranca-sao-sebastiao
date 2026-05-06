@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa de Segurança — São Sebastião</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  body { margin:0; font-family:sans-serif; }
+  #mapa { height:100vh; }
+  .controles {
+    position:absolute; top:12px; right:12px; z-index:1000;
+    background:white; border-radius:12px; padding:16px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:13px;
+  }
+  .controles strong { display:block; margin-bottom:10px; }
+  .controles label { display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px; }
+  .controles label:last-child { margin-bottom:0; }
+  .dot-geral  { width:12px; height:12px; border-radius:50%; background:#e74c3c; flex-shrink:0; }
+  .dot-mulher { width:12px; height:12px; border-radius:50%; background:#7B3FA0; flex-shrink:0; }
+  .info-box {
+    position:absolute; bottom:24px; left:12px; z-index:1000;
+    background:white; border-radius:12px; padding:14px 18px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:12px; max-width:220px;
+  }
+  .info-box strong { display:block; margin-bottom:6px; font-size:13px; }
+  .info-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; color:#555; }
+</style>
+</head>
+<body>
+
+<div id="mapa"></div>
+
+<div class="controles">
+  <strong>Filtrar alertas</strong>
+  <label>
+    <input type="checkbox" id="chk-geral" checked>
+    <span class="dot-geral"></span> Alertas gerais
+  </label>
+  <label>
+    <input type="checkbox" id="chk-mulher" checked>
+    <span class="dot-mulher"></span> Espaço Seguro
+  </label>
+</div>
+
+<div class="info-box">
+  <strong>🗺️ Rede de Segurança</strong>
+  <div class="info-row"><span class="dot-geral"></span> Alerta confirmado</div>
+  <div class="info-row" style="color:#888"><span style="width:12px;height:12px;border-radius:50%;background:#888;flex-shrink:0;display:inline-block"></span> Alerta pendente</div>
+  <div class="info-row"><span class="dot-mulher"></span> Espaço Seguro</div>
+  <div class="info-row" style="color:#C2185B"><span style="width:12px;height:12px;border-radius:50%;background:#C2185B;flex-shrink:0;display:inline-block"></span> SOS</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const FB_URL = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
+
+  // Centro em São Sebastião, SP
+  const mapa = L.map("mapa").setView([-23.7889, -45.4103], 14);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap"
+  }).addTo(mapa);
+
+  // Ícones personalizados
+  function icone(cor, emoji) {
+    return L.divIcon({
+      html: `<div style="background:${cor};width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="transform:rotate(45deg);font-size:16px">${emoji}</span></div>`,
+      className: "", iconSize: [36,36], iconAnchor: [18,36]
+    });
+  }
+  const icGeral     = icone("#e74c3c", "🚨");
+  const icPendente  = icone("#888",    "⏳");
+  const icMulher    = icone("#7B3FA0", "🚺");
+  const icMulherSOS = icone("#C2185B", "🆘");
+
+  // Camadas separadas para filtro funcionar
+  const camadaGeral  = L.layerGroup().addTo(mapa);
+  const camadaMulher = L.layerGroup().addTo(mapa);
+
+  // Carrega alertas gerais
+  async function carregarGeral() {
+    try {
+      const r     = await fetch(FB_URL + "/alertas.json");
+      const dados = await r.json();
+      camadaGeral.clearLayers();
+      if (!dados) return;
+      Object.values(dados).forEach(a => {
+        if (!a.lat || !a.lng) return;
+        const ic = a.status === "confirmado" ? icGeral : icPendente;
+        L.marker([a.lat, a.lng], { icon: ic })
+          .bindPopup(`
+            <b>🚨 ${a.descricao}</b><br>
+            🕐 ${a.hora} — ${a.data}<br>
+            ✅ ${a.confirmacoes || 0} confirmações<br>
+            <span style="color:${a.status==='confirmado'?'green':'orange'}">${a.status}</span>
+          `)
+          .addTo(camadaGeral);
+      });
+    } catch(e) { console.error("Erro ao carregar alertas:", e); }
+  }
+
+  // Carrega relatos femininos
+  async function carregarMulheres() {
+    try {
+      const r     = await fetch(FB_URL + "/alertas_mulheres.json");
+      const dados = await r.json();
+      camadaMulher.clearLayers();
+      if (!dados) return;
+      Object.values(dados).forEach(a => {
+        if (!a.lat || !a.lng) return;
+        const ic = a.categoria && a.categoria.includes("ajuda") ? icMulherSOS : icMulher;
+        L.marker([a.lat, a.lng], { icon: ic })
+          .bindPopup(`
+            <b>🚺 ${a.categoria}</b><br>
+            🕐 ${a.hora} — ${a.data}<br>
+            <i>Relato anônimo</i>
+          `)
+          .addTo(camadaMulher);
+      });
+    } catch(e) { console.error("Erro ao carregar relatos:", e); }
+  }
+
+  // Filtros
+  document.getElementById("chk-geral").addEventListener("change", e => {
+    e.target.checked ? mapa.addLayer(camadaGeral) : mapa.removeLayer(camadaGeral);
+  });
+  document.getElementById("chk-mulher").addEventListener("change", e => {
+    e.target.checked ? mapa.addLayer(camadaMulher) : mapa.removeLayer(camadaMulher);
+  });
+
+  // Carrega e atualiza a cada 30 segundos
+  carregarGeral();
+  carregarMulheres();
+  setInterval(carregarGeral,    30000);
+  setInterval(carregarMulheres, 30000);
+</script>
+</body>
+</html>
