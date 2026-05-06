@@ -12,6 +12,11 @@ const URL_FIREBASE = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebas
 const URL_API      = `https://api.telegram.org/bot${TOKEN_BOT}`;
 
 // =====================================================
+// CACHE em memória
+// =====================================================
+const cache = {};
+
+// =====================================================
 // RECEBE MENSAGENS DO TELEGRAM
 // =====================================================
 app.post("/webhook", async (req, res) => {
@@ -66,11 +71,6 @@ app.post("/webhook", async (req, res) => {
 });
 
 // =====================================================
-// CACHE em memória (substitui PropertiesService)
-// =====================================================
-const cache = {};
-
-// =====================================================
 // FLUXO GERAL
 // =====================================================
 async function pedirLocalizacao(chatId, mensagem) {
@@ -97,7 +97,8 @@ async function salvarAlerta(chatId, lat, lng) {
     data:         new Date().toLocaleDateString("pt-BR"),
     confirmacoes: 0,
     negacoes:     0,
-    status:       "pendente"
+    // Relatos femininos já nascem como "ativo" — sem precisar de confirmação
+    status:       tipo === "mulher" ? "ativo" : "pendente"
   };
 
   const resp = await fetch(URL_FIREBASE + ".json", {
@@ -118,20 +119,28 @@ async function salvarAlerta(chatId, lat, lng) {
 
 async function notificarCanal(alerta, id) {
   const emoji = alerta.tipo === "mulher" ? "🟣" : "🔴";
-  const texto = `${emoji} *NOVO ALERTA*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\nVocê está vendo isso agora?`;
-  const botoes = { inline_keyboard: [[
-    { text: "✅ Confirmo!",    callback_data: "confirmar_" + id },
-    { text: "❌ Não vi nada", callback_data: "negar_"     + id }
-  ]]};
+  const texto = alerta.tipo === "mulher"
+    ? `${emoji} *NOVO RELATO — Espaço Seguro*\n\n📌 ${alerta.categoria || alerta.descricao}\n🕐 ${alerta.hora}\n\n_Relato anônimo — localização registrada no mapa_`
+    : `${emoji} *NOVO ALERTA*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\nVocê está vendo isso agora?`;
+
+  const payload = {
+    chat_id:    CANAL_ID,
+    text:       texto,
+    parse_mode: "Markdown"
+  };
+
+  // Botões de confirmação apenas para alertas gerais
+  if (alerta.tipo !== "mulher") {
+    payload.reply_markup = { inline_keyboard: [[
+      { text: "✅ Confirmo!",    callback_data: "confirmar_" + id },
+      { text: "❌ Não vi nada", callback_data: "negar_"     + id }
+    ]]};
+  }
+
   await fetch(`${URL_API}/sendMessage`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({
-      chat_id:      CANAL_ID,
-      text:         texto,
-      parse_mode:   "Markdown",
-      reply_markup: botoes
-    })
+    body:    JSON.stringify(payload)
   });
 }
 
