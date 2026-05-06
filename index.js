@@ -6,7 +6,7 @@ app.use(express.json());
 // =====================================================
 // DADOS DO PROJETO — São Sebastião
 // =====================================================
-const TOKEN_BOT    = "SEU_TOKEN_AQUI";
+const TOKEN_BOT    = "7661468638:AAFjfveABE54v62Vn-ZFvl9Rz0hgWuiYRPw";
 const CANAL_ID     = "-1003962050836";
 const URL_FIREBASE = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com/alertas";
 const URL_API      = `https://api.telegram.org/bot${TOKEN_BOT}`;
