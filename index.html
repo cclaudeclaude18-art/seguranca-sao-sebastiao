@@ -142,8 +142,8 @@
 <script>
   const FB = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
 
-  // Inicia o mapa sem centro fixo — vai centralizar nos dados
-  const mapa = L.map("mapa");
+  // Centro fixo em São Sebastião SP — sempre abre aqui
+  const mapa = L.map("mapa").setView([-23.7889, -45.4103], 14);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(mapa);
@@ -166,8 +166,7 @@
   const camadaGeral   = L.layerGroup().addTo(mapa);
   const camadaMulher  = L.layerGroup().addTo(mapa);
 
-  // Guarda todos os pontos para centralizar o mapa
-  const todosPontos = [];
+
 
   // ── Carrega alertas gerais ────────────────────────────────
   async function carregarGeral() {
@@ -195,12 +194,9 @@
         L.marker([a.lat, a.lng], { icon: ic })
           .bindPopup(popup)
           .addTo(camadaGeral);
-
-        todosPontos.push([a.lat, a.lng]);
       });
 
       atualizarContador();
-      centralizarMapa();
     } catch(e) {
       console.error("Erro ao carregar alertas gerais:", e);
     }
@@ -230,24 +226,12 @@
         L.marker([a.lat, a.lng], { icon: ic })
           .bindPopup(popup)
           .addTo(camadaMulher);
-
-        todosPontos.push([a.lat, a.lng]);
       });
 
       atualizarContador();
-      centralizarMapa();
     } catch(e) {
       console.error("Erro ao carregar relatos femininos:", e);
     }
-  }
-
-  // ── Centraliza o mapa nos pontos existentes ───────────────
-  let mapaJaCentralizado = false;
-  function centralizarMapa() {
-    if (mapaJaCentralizado || todosPontos.length === 0) return;
-    const bounds = L.latLngBounds(todosPontos);
-    mapa.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-    mapaJaCentralizado = true;
   }
 
   // ── Atualiza contador ─────────────────────────────────────
@@ -268,7 +252,6 @@
   carregarGeral();
   carregarMulheres();
   setInterval(() => {
-    mapaJaCentralizado = true; // não recentraliza nas atualizações
     carregarGeral();
     carregarMulheres();
   }, 30000);
