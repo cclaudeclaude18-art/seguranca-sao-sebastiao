@@ -4,7 +4,7 @@ const app     = express();
 app.use(express.json());
 
 // =====================================================
-// DADOS DO PROJETO — São Sebastião
+// DADOS DO PROJETO — São Sebastião DF
 // =====================================================
 const TOKEN_BOT    = "7661468638:AAFjfveABE54v62Vn-ZFvl9Rz0hgWuiYRPw";
 const CANAL_ID     = "-1003962050836";
@@ -12,9 +12,34 @@ const URL_FIREBASE = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebas
 const URL_API      = `https://api.telegram.org/bot${TOKEN_BOT}`;
 
 // =====================================================
+// VALIDAÇÃO DE ÁREA — São Sebastião DF
+// =====================================================
+const AREA = {
+  LAT_MIN: -16.05,
+  LAT_MAX: -15.80,
+  LNG_MIN: -47.90,
+  LNG_MAX: -47.70
+};
+
+function localizacaoValida(lat, lng) {
+  return lat >= AREA.LAT_MIN && lat <= AREA.LAT_MAX &&
+         lng >= AREA.LNG_MIN && lng <= AREA.LNG_MAX;
+}
+
+// =====================================================
 // CACHE em memória
 // =====================================================
 const cache = {};
+
+// =====================================================
+// PING — mantém o servidor acordado
+// =====================================================
+app.get("/ping", (req, res) => res.send("ok"));
+
+const https = require("https");
+setInterval(() => {
+  https.get("https://seguranca-sao-sebastiao.onrender.com/ping", () => {});
+}, 14 * 60 * 1000);
 
 // =====================================================
 // RECEBE MENSAGENS DO TELEGRAM
@@ -25,7 +50,6 @@ app.post("/webhook", async (req, res) => {
   const msg   = dados.message;
   const cb    = dados.callback_query;
 
-  // Botão clicado
   if (cb) {
     if (cb.data.startsWith("cat_")) {
       await guardarCategoria(cb);
@@ -41,13 +65,23 @@ app.post("/webhook", async (req, res) => {
   const texto  = msg.text || "";
   const local  = msg.location || null;
 
-  // Usuário enviou localização GPS
   if (local) {
-    await salvarAlerta(chatId, local.latitude, local.longitude);
+    const { latitude: lat, longitude: lng } = local;
+
+    if (!localizacaoValida(lat, lng)) {
+      await enviarMensagem(chatId,
+        "❌ Localização fora de São Sebastião — DF.\n\n" +
+        "Este sistema é exclusivo para a comunidade de São Sebastião. " +
+        "Certifique-se de estar na região e tente novamente."
+      );
+      delete cache[chatId];
+      return;
+    }
+
+    await salvarAlerta(chatId, lat, lng);
     return;
   }
 
-  // FLUXO GERAL
   if (texto.startsWith("/alerta")) {
     const desc = texto.replace("/alerta", "").trim() || "Situação suspeita";
     cache[chatId] = { desc, tipo: "geral" };
@@ -55,15 +89,13 @@ app.post("/webhook", async (req, res) => {
     return;
   }
 
-  // FLUXO FEMININO
   if (texto === "/registrar" || texto === "/espaco") {
     await mostrarCategorias(chatId);
     return;
   }
 
-  // Boas-vindas
   await enviarMensagem(chatId,
-    "👋 Olá! Bem-vindo à Rede de Segurança de São Sebastião.\n\n" +
+    "👋 Olá! Bem-vindo à Rede de Segurança de São Sebastião — DF.\n\n" +
     "🚨 Use /alerta para reportar algo suspeito.\n" +
     "   Ex: /alerta Carro parado há horas\n\n" +
     "🚺 Use /registrar para o Espaço Seguro das Mulheres."
@@ -97,11 +129,13 @@ async function salvarAlerta(chatId, lat, lng) {
     data:         new Date().toLocaleDateString("pt-BR"),
     confirmacoes: 0,
     negacoes:     0,
-    // Relatos femininos já nascem como "ativo" — sem precisar de confirmação
     status:       tipo === "mulher" ? "ativo" : "pendente"
   };
 
-  const resp = await fetch(URL_FIREBASE + ".json", {
+  const no = tipo === "mulher" ? "/alertas_mulheres" : "/alertas";
+  const urlFirebase = `https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com${no}`;
+
+  const resp = await fetch(urlFirebase + ".json", {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify(alerta)
@@ -120,7 +154,7 @@ async function salvarAlerta(chatId, lat, lng) {
 async function notificarCanal(alerta, id) {
   const emoji = alerta.tipo === "mulher" ? "🟣" : "🔴";
   const texto = alerta.tipo === "mulher"
-    ? `${emoji} *NOVO RELATO — Espaço Seguro*\n\n📌 ${alerta.categoria || alerta.descricao}\n🕐 ${alerta.hora}\n\n_Relato anônimo — localização registrada no mapa_`
+    ? `${emoji} *NOVO RELATO — Espaço Seguro*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\n_Relato anônimo — localização registrada no mapa_`
     : `${emoji} *NOVO ALERTA*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\nVocê está vendo isso agora?`;
 
   const payload = {
@@ -129,7 +163,6 @@ async function notificarCanal(alerta, id) {
     parse_mode: "Markdown"
   };
 
-  // Botões de confirmação apenas para alertas gerais
   if (alerta.tipo !== "mulher") {
     payload.reply_markup = { inline_keyboard: [[
       { text: "✅ Confirmo!",    callback_data: "confirmar_" + id },
@@ -196,7 +229,7 @@ async function mostrarCategorias(chatId) {
     [{ text: "🆘 Preciso de ajuda AGORA", callback_data: "cat_sos"        }]
   ]};
   await enviarMensagem(chatId,
-    "💜 Espaço Seguro — São Sebastião\n\nO que você quer registrar?\n_(seu nome nunca é guardado)_",
+    "💜 Espaço Seguro — São Sebastião DF\n\nO que você quer registrar?\n_(seu nome nunca é guardado)_",
     botoes
   );
 }
@@ -234,16 +267,5 @@ async function enviarMensagem(chatId, texto, teclado) {
 // =====================================================
 // INICIA O SERVIDOR
 // =====================================================
-
-
 const PORT = process.env.PORT || 3000;
-
-// Mantém o servidor acordado — ping a cada 14 minutos
-const https = require("https");
-setInterval(() => {
-  https.get("https://seguranca-sao-sebastiao.onrender.com/ping");
-}, 14 * 60 * 1000);
-
-app.get("/ping", (req, res) => res.send("ok"));
-
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
