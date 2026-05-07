@@ -55,11 +55,12 @@
 <script>
   const FB_URL = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
 
-  // Centro em São Sebastião, SP
-  const mapa = L.map("mapa").setView([-23.7889, -45.4103], 14);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap"
-  }).addTo(mapa);
+const mapa = L.map("mapa");
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap"
+}).addTo(mapa);
+// Centraliza depois de carregar os dados
+mapa.setView([-15.894, -47.779], 13);
 
   // Ícones personalizados
   function icone(cor, emoji) {
