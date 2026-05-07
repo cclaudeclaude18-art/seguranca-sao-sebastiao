@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa de Segurança — São Sebastião</title>
+<title>Mapa de Segurança — São Sebastião DF</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -60,7 +60,7 @@
     border: 1px solid rgba(28,25,23,0.08);
     border-radius: 14px; padding: 14px 18px;
     box-shadow: 0 2px 16px rgba(28,25,23,0.08);
-    font-size: 12px; text-align: center;
+    text-align: center;
   }
   .contador-num {
     font-size: 2rem; font-weight: 700;
@@ -142,8 +142,8 @@
 <script>
   const FB = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
 
-  // Centro fixo em São Sebastião SP — sempre abre aqui
-  const mapa = L.map("mapa").setView([-23.7889, -45.4103], 14);
+  // Centro fixo em São Sebastião DF
+  const mapa = L.map("mapa").setView([-15.9149, -47.8021], 13);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(mapa);
@@ -163,32 +163,34 @@
   const icSOS        = icone("#C2185B", "🆘");
 
   // ── Camadas separadas ─────────────────────────────────────
-  const camadaGeral   = L.layerGroup().addTo(mapa);
-  const camadaMulher  = L.layerGroup().addTo(mapa);
-
-
+  const camadaGeral  = L.layerGroup().addTo(mapa);
+  const camadaMulher = L.layerGroup().addTo(mapa);
 
   // ── Carrega alertas gerais ────────────────────────────────
   async function carregarGeral() {
     try {
-      const resp  = await fetch(FB + "/alertas.json");
-      const dados = await resp.json();
+      const dados = await (await fetch(FB + "/alertas.json")).json();
       camadaGeral.clearLayers();
       if (!dados) return;
 
       Object.values(dados).forEach(a => {
         if (!a.lat || !a.lng) return;
 
-        // Escolhe ícone pelo status
-        const ic = a.status === "confirmado" ? icConfirmado : icPendente;
+        // Se tipo for mulher, usa ícone roxo mesmo estando no nó geral
+        let ic;
+        if (a.tipo === "mulher") {
+          ic = (a.descricao || "").toLowerCase().includes("ajuda") ? icSOS : icMulher;
+        } else {
+          ic = a.status === "confirmado" ? icConfirmado : icPendente;
+        }
 
         const popup = `
-          <b>🚨 ${a.descricao || "Alerta"}</b><br>
+          <b>${a.tipo === "mulher" ? "🚺" : "🚨"} ${a.descricao || "Alerta"}</b><br>
           🕐 ${a.hora || ""} · ${a.data || ""}<br>
-          ✅ ${a.confirmacoes || 0} confirmação(ões)<br>
-          <span style="color:${a.status === 'confirmado' ? '#e74c3c' : '#999'}">
-            ${a.status || "pendente"}
-          </span>
+          ${a.tipo === "mulher"
+            ? "<i style='color:#8B5E9E'>Relato anônimo — Espaço Seguro</i>"
+            : `✅ ${a.confirmacoes || 0} confirmação(ões) · <span style='color:${a.status === "confirmado" ? "#e74c3c" : "#999"}'>${a.status || "pendente"}</span>`
+          }
         `;
 
         L.marker([a.lat, a.lng], { icon: ic })
@@ -205,15 +207,13 @@
   // ── Carrega relatos femininos ─────────────────────────────
   async function carregarMulheres() {
     try {
-      const resp  = await fetch(FB + "/alertas_mulheres.json");
-      const dados = await resp.json();
+      const dados = await (await fetch(FB + "/alertas_mulheres.json")).json();
       camadaMulher.clearLayers();
       if (!dados) return;
 
       Object.values(dados).forEach(a => {
         if (!a.lat || !a.lng) return;
 
-        // SOS tem ícone diferente
         const isSOS = (a.categoria || a.descricao || "").toLowerCase().includes("ajuda");
         const ic    = isSOS ? icSOS : icMulher;
 
@@ -251,10 +251,8 @@
   // ── Carrega e atualiza a cada 30 segundos ─────────────────
   carregarGeral();
   carregarMulheres();
-  setInterval(() => {
-    carregarGeral();
-    carregarMulheres();
-  }, 30000);
+  setInterval(carregarGeral,    30000);
+  setInterval(carregarMulheres, 30000);
 </script>
 </body>
 </html>
