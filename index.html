@@ -6,122 +6,257 @@
 <title>Mapa de Segurança — São Sebastião</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  body { margin:0; font-family:sans-serif; }
-  #mapa { height:100vh; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: sans-serif; background: #FAF7F2; }
+  #mapa { height: 100vh; width: 100%; }
+
   .controles {
-    position:absolute; top:12px; right:12px; z-index:1000;
-    background:white; border-radius:12px; padding:16px;
-    box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:13px;
+    position: absolute; top: 12px; right: 12px; z-index: 1000;
+    background: rgba(250,247,242,0.97);
+    border: 1px solid rgba(28,25,23,0.08);
+    border-radius: 14px; padding: 16px 18px;
+    box-shadow: 0 2px 16px rgba(28,25,23,0.08);
+    font-size: 13px; min-width: 180px;
   }
-  .controles strong { display:block; margin-bottom:10px; }
-  .controles label { display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px; }
-  .controles label:last-child { margin-bottom:0; }
-  .dot-geral  { width:12px; height:12px; border-radius:50%; background:#e74c3c; flex-shrink:0; }
-  .dot-mulher { width:12px; height:12px; border-radius:50%; background:#7B3FA0; flex-shrink:0; }
-  .info-box {
-    position:absolute; bottom:24px; left:12px; z-index:1000;
-    background:white; border-radius:12px; padding:14px 18px;
-    box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:12px; max-width:220px;
+  .controles strong {
+    display: block; margin-bottom: 10px;
+    font-size: 0.68rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #6B6560;
   }
-  .info-box strong { display:block; margin-bottom:6px; font-size:13px; }
-  .info-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; color:#555; }
+  .controles label {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; margin-bottom: 8px;
+    font-size: 0.83rem; color: #1C1917;
+  }
+  .controles label:last-child { margin-bottom: 0; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .dot-confirmado { background: #e74c3c; }
+  .dot-pendente   { background: #999; }
+  .dot-mulher     { background: #8B5E9E; }
+  .dot-sos        { background: #C2185B; }
+
+  .legenda {
+    position: absolute; bottom: 24px; left: 12px; z-index: 1000;
+    background: rgba(250,247,242,0.97);
+    border: 1px solid rgba(28,25,23,0.08);
+    border-radius: 14px; padding: 14px 18px;
+    box-shadow: 0 2px 16px rgba(28,25,23,0.08);
+    font-size: 12px;
+  }
+  .legenda strong {
+    display: block; margin-bottom: 8px;
+    font-size: 0.68rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #6B6560;
+  }
+  .leg-item {
+    display: flex; align-items: center; gap: 7px;
+    margin-bottom: 5px; color: #1C1917; font-size: 0.8rem;
+  }
+  .leg-item:last-child { margin-bottom: 0; }
+
+  .contador {
+    position: absolute; top: 12px; left: 12px; z-index: 1000;
+    background: rgba(250,247,242,0.97);
+    border: 1px solid rgba(28,25,23,0.08);
+    border-radius: 14px; padding: 14px 18px;
+    box-shadow: 0 2px 16px rgba(28,25,23,0.08);
+    font-size: 12px; text-align: center;
+  }
+  .contador-num {
+    font-size: 2rem; font-weight: 700;
+    color: #8B5E9E; line-height: 1;
+  }
+  .contador-label {
+    font-size: 0.7rem; color: #6B6560;
+    margin-top: 4px; line-height: 1.4;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  .ao-vivo {
+    position: absolute; top: 120px; left: 12px; z-index: 1000;
+    background: rgba(250,247,242,0.97);
+    border: 1px solid rgba(139,94,158,0.2);
+    border-radius: 100px; padding: 6px 14px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.72rem; font-weight: 600;
+    color: #8B5E9E; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ao-vivo-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #8B5E9E;
+    animation: pulsar 2s ease-in-out infinite;
+  }
+  @keyframes pulsar {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.3; transform:scale(0.6); }
+  }
+
+  @media(max-width:600px) {
+    .controles { top:auto; bottom:80px; right:8px; padding:12px 14px; }
+    .legenda { display:none; }
+    .contador { top:8px; left:8px; padding:10px 14px; }
+    .ao-vivo { top:auto; bottom:8px; left:8px; }
+  }
 </style>
 </head>
 <body>
 
 <div id="mapa"></div>
 
+<!-- Contador -->
+<div class="contador">
+  <div class="contador-num" id="total">—</div>
+  <div class="contador-label">alertas<br>registrados</div>
+</div>
+
+<!-- Badge ao vivo -->
+<div class="ao-vivo">
+  <span class="ao-vivo-dot"></span>
+  ao vivo
+</div>
+
+<!-- Filtros -->
 <div class="controles">
-  <strong>Filtrar alertas</strong>
+  <strong>Filtrar</strong>
   <label>
     <input type="checkbox" id="chk-geral" checked>
-    <span class="dot-geral"></span> Alertas gerais
+    <span class="dot dot-confirmado"></span> Alertas gerais
   </label>
   <label>
     <input type="checkbox" id="chk-mulher" checked>
-    <span class="dot-mulher"></span> Espaço Seguro
+    <span class="dot dot-mulher"></span> Espaço Seguro
   </label>
 </div>
 
-<div class="info-box">
-  <strong>🗺️ Rede de Segurança</strong>
-  <div class="info-row"><span class="dot-geral"></span> Alerta confirmado</div>
-  <div class="info-row" style="color:#888"><span style="width:12px;height:12px;border-radius:50%;background:#888;flex-shrink:0;display:inline-block"></span> Alerta pendente</div>
-  <div class="info-row"><span class="dot-mulher"></span> Espaço Seguro</div>
-  <div class="info-row" style="color:#C2185B"><span style="width:12px;height:12px;border-radius:50%;background:#C2185B;flex-shrink:0;display:inline-block"></span> SOS</div>
+<!-- Legenda -->
+<div class="legenda">
+  <strong>Legenda</strong>
+  <div class="leg-item"><span class="dot dot-confirmado"></span> Alerta confirmado</div>
+  <div class="leg-item"><span class="dot dot-pendente"></span> Alerta pendente</div>
+  <div class="leg-item"><span class="dot dot-mulher"></span> Espaço Seguro</div>
+  <div class="leg-item"><span class="dot dot-sos"></span> SOS</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  const FB_URL = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
+  const FB = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
 
-const mapa = L.map("mapa");
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "© OpenStreetMap"
-}).addTo(mapa);
-// Centraliza depois de carregar os dados
-mapa.setView([-15.894, -47.779], 13);
+  // Inicia o mapa sem centro fixo — vai centralizar nos dados
+  const mapa = L.map("mapa");
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap"
+  }).addTo(mapa);
 
-  // Ícones personalizados
+  // ── Ícones ────────────────────────────────────────────────
   function icone(cor, emoji) {
     return L.divIcon({
-      html: `<div style="background:${cor};width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="transform:rotate(45deg);font-size:16px">${emoji}</span></div>`,
-      className: "", iconSize: [36,36], iconAnchor: [18,36]
+      html: `<div style="background:${cor};width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25)"><span style="transform:rotate(45deg);font-size:16px">${emoji}</span></div>`,
+      className: "",
+      iconSize: [36, 36],
+      iconAnchor: [18, 36]
     });
   }
-  const icGeral     = icone("#e74c3c", "🚨");
-  const icPendente  = icone("#888",    "⏳");
-  const icMulher    = icone("#7B3FA0", "🚺");
-  const icMulherSOS = icone("#C2185B", "🆘");
+  const icConfirmado = icone("#e74c3c", "🚨");
+  const icPendente   = icone("#999999", "⏳");
+  const icMulher     = icone("#8B5E9E", "🚺");
+  const icSOS        = icone("#C2185B", "🆘");
 
-  // Camadas separadas para filtro funcionar
-  const camadaGeral  = L.layerGroup().addTo(mapa);
-  const camadaMulher = L.layerGroup().addTo(mapa);
+  // ── Camadas separadas ─────────────────────────────────────
+  const camadaGeral   = L.layerGroup().addTo(mapa);
+  const camadaMulher  = L.layerGroup().addTo(mapa);
 
-  // Carrega alertas gerais
+  // Guarda todos os pontos para centralizar o mapa
+  const todosPontos = [];
+
+  // ── Carrega alertas gerais ────────────────────────────────
   async function carregarGeral() {
     try {
-      const r     = await fetch(FB_URL + "/alertas.json");
-      const dados = await r.json();
+      const resp  = await fetch(FB + "/alertas.json");
+      const dados = await resp.json();
       camadaGeral.clearLayers();
       if (!dados) return;
+
       Object.values(dados).forEach(a => {
         if (!a.lat || !a.lng) return;
-        const ic = a.status === "confirmado" ? icGeral : icPendente;
+
+        // Escolhe ícone pelo status
+        const ic = a.status === "confirmado" ? icConfirmado : icPendente;
+
+        const popup = `
+          <b>🚨 ${a.descricao || "Alerta"}</b><br>
+          🕐 ${a.hora || ""} · ${a.data || ""}<br>
+          ✅ ${a.confirmacoes || 0} confirmação(ões)<br>
+          <span style="color:${a.status === 'confirmado' ? '#e74c3c' : '#999'}">
+            ${a.status || "pendente"}
+          </span>
+        `;
+
         L.marker([a.lat, a.lng], { icon: ic })
-          .bindPopup(`
-            <b>🚨 ${a.descricao}</b><br>
-            🕐 ${a.hora} — ${a.data}<br>
-            ✅ ${a.confirmacoes || 0} confirmações<br>
-            <span style="color:${a.status==='confirmado'?'green':'orange'}">${a.status}</span>
-          `)
+          .bindPopup(popup)
           .addTo(camadaGeral);
+
+        todosPontos.push([a.lat, a.lng]);
       });
-    } catch(e) { console.error("Erro ao carregar alertas:", e); }
+
+      atualizarContador();
+      centralizarMapa();
+    } catch(e) {
+      console.error("Erro ao carregar alertas gerais:", e);
+    }
   }
 
-  // Carrega relatos femininos
+  // ── Carrega relatos femininos ─────────────────────────────
   async function carregarMulheres() {
     try {
-      const r     = await fetch(FB_URL + "/alertas_mulheres.json");
-      const dados = await r.json();
+      const resp  = await fetch(FB + "/alertas_mulheres.json");
+      const dados = await resp.json();
       camadaMulher.clearLayers();
       if (!dados) return;
+
       Object.values(dados).forEach(a => {
         if (!a.lat || !a.lng) return;
-        const ic = a.categoria && a.categoria.includes("ajuda") ? icMulherSOS : icMulher;
+
+        // SOS tem ícone diferente
+        const isSOS = (a.categoria || a.descricao || "").toLowerCase().includes("ajuda");
+        const ic    = isSOS ? icSOS : icMulher;
+
+        const popup = `
+          <b>🚺 ${a.categoria || a.descricao || "Relato"}</b><br>
+          🕐 ${a.hora || ""} · ${a.data || ""}<br>
+          <i style="color:#8B5E9E">Relato anônimo — Espaço Seguro</i>
+        `;
+
         L.marker([a.lat, a.lng], { icon: ic })
-          .bindPopup(`
-            <b>🚺 ${a.categoria}</b><br>
-            🕐 ${a.hora} — ${a.data}<br>
-            <i>Relato anônimo</i>
-          `)
+          .bindPopup(popup)
           .addTo(camadaMulher);
+
+        todosPontos.push([a.lat, a.lng]);
       });
-    } catch(e) { console.error("Erro ao carregar relatos:", e); }
+
+      atualizarContador();
+      centralizarMapa();
+    } catch(e) {
+      console.error("Erro ao carregar relatos femininos:", e);
+    }
   }
 
-  // Filtros
+  // ── Centraliza o mapa nos pontos existentes ───────────────
+  let mapaJaCentralizado = false;
+  function centralizarMapa() {
+    if (mapaJaCentralizado || todosPontos.length === 0) return;
+    const bounds = L.latLngBounds(todosPontos);
+    mapa.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    mapaJaCentralizado = true;
+  }
+
+  // ── Atualiza contador ─────────────────────────────────────
+  function atualizarContador() {
+    const total = camadaGeral.getLayers().length + camadaMulher.getLayers().length;
+    document.getElementById("total").textContent = total;
+  }
+
+  // ── Filtros ───────────────────────────────────────────────
   document.getElementById("chk-geral").addEventListener("change", e => {
     e.target.checked ? mapa.addLayer(camadaGeral) : mapa.removeLayer(camadaGeral);
   });
@@ -129,11 +264,14 @@ mapa.setView([-15.894, -47.779], 13);
     e.target.checked ? mapa.addLayer(camadaMulher) : mapa.removeLayer(camadaMulher);
   });
 
-  // Carrega e atualiza a cada 30 segundos
+  // ── Carrega e atualiza a cada 30 segundos ─────────────────
   carregarGeral();
   carregarMulheres();
-  setInterval(carregarGeral,    30000);
-  setInterval(carregarMulheres, 30000);
+  setInterval(() => {
+    mapaJaCentralizado = true; // não recentraliza nas atualizações
+    carregarGeral();
+    carregarMulheres();
+  }, 30000);
 </script>
 </body>
 </html>
