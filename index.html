@@ -438,6 +438,57 @@ canvas{display:block;width:100%}
 @media(max-width:480px){
   .bbar-agora{display:none}
 }
+
+/* ── QR CODE MODAL ── */
+.qr-btn{
+  display:flex;align-items:center;gap:6px;
+  background:var(--lilas);color:#fff;
+  border:none;border-radius:100px;
+  padding:5px 12px;font-size:.7rem;font-weight:500;
+  cursor:pointer;white-space:nowrap;
+}
+.qr-btn:hover{background:var(--lilas-m)}
+.qr-overlay{
+  display:none;position:fixed;inset:0;z-index:2000;
+  background:rgba(28,25,23,.55);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+.qr-overlay.vis{display:flex}
+.qr-card{
+  background:var(--branco);border-radius:20px;
+  padding:28px 32px;text-align:center;
+  box-shadow:0 8px 40px rgba(28,25,23,.18);
+  max-width:320px;width:90%;
+  animation:entrar .25s ease;
+}
+.qr-card h3{
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.3rem;font-weight:600;
+  color:var(--preto);margin-bottom:6px;
+}
+.qr-card p{font-size:.78rem;color:var(--cinza);margin-bottom:18px;line-height:1.5}
+.qr-img{width:180px;height:180px;border-radius:12px;border:1px solid var(--borda)}
+.qr-url{
+  margin-top:14px;font-size:.68rem;color:var(--lilas);
+  word-break:break-all;font-family:monospace;
+}
+.qr-close{
+  margin-top:16px;background:transparent;border:1px solid var(--borda);
+  border-radius:100px;padding:7px 20px;font-size:.75rem;
+  color:var(--cinza);cursor:pointer;
+}
+.qr-close:hover{background:var(--creme2)}
+.tg-strip{
+  margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+}
+.tg-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#229ED9;color:#fff;border-radius:100px;
+  padding:8px 16px;font-size:.75rem;font-weight:500;
+  text-decoration:none;
+}
+.tg-btn.fem{background:var(--lilas)}
+.tg-btn:hover{opacity:.88}
 </style>
 </head>
 <body>
@@ -453,6 +504,7 @@ canvas{display:block;width:100%}
   <a href="#" class="nav-logo"><span class="nav-dot"></span>Escudo Violeta</a>
   <div class="vivo"><span class="vdot"></span><span>ao vivo</span></div>
   <div class="nav-agora" id="nav-agora"></div>
+  <button class="qr-btn" onclick="abrirQR()" title="Ver QR Code do site">📲 QR Code</button>
   <button class="nav-ic" id="btn-noite" onclick="alternarNoite()" title="Modo noturno">🌙</button>
 </nav>
 
@@ -482,7 +534,6 @@ canvas{display:block;width:100%}
   <!-- GAVETA (desktop) -->
   <div class="gaveta" id="gaveta">
     <div class="g-strip">
-      <!-- agora counter -->
       <div class="strip-agora" onclick="abrirGaveta()">
         <div class="strip-agora-n">🔔</div>
         <div class="strip-cnt" id="strip-cnt"></div>
@@ -503,7 +554,6 @@ canvas{display:block;width:100%}
         <button class="pnl-fechar" onclick="fecharGaveta()">✕</button>
       </div>
 
-      <!-- detalhe do marcador clicado -->
       <div class="sel-detalhe" id="sel-det">
         <div class="sel-nome" id="sd-nome">—</div>
         <div class="sel-meta" id="sd-meta"></div>
@@ -517,7 +567,6 @@ canvas{display:block;width:100%}
       </div>
 
       <div class="pnl-body">
-        <!-- ALERTAS -->
         <div id="pt-feed">
           <div class="feed-sec">
             <div class="feed-tit">Alertas gerais <span class="fcnt" id="cnt-g">0</span></div>
@@ -529,7 +578,6 @@ canvas{display:block;width:100%}
           </div>
         </div>
 
-        <!-- DADOS PREFEITURA -->
         <div id="pt-dados" style="display:none">
           <div class="dados-grid">
             <div class="dcard"><div class="dval" id="d-tot">—</div><div class="dlbl">Esta semana</div></div>
@@ -544,7 +592,6 @@ canvas{display:block;width:100%}
           </div>
         </div>
 
-        <!-- HISTÓRICO -->
         <div id="pt-hist" style="display:none">
           <div style="padding:13px">
             <div class="feed-tit">Últimos 7 dias</div>
@@ -554,7 +601,6 @@ canvas{display:block;width:100%}
           </div>
         </div>
 
-        <!-- ESTOU CHEGANDO + ROTA -->
         <div id="pt-chegando" style="display:none">
           <div class="widgets-wrap">
             <div class="widget">
@@ -646,17 +692,6 @@ canvas{display:block;width:100%}
   </div>
 </div>
 
-<footer style="
-  position:fixed;bottom:0;left:0;
-  font-family:'DM Sans',sans-serif;
-  font-size:.65rem;color:var(--cinza);
-  padding:4px 12px;
-  pointer-events:none;
-  z-index:100;
-">
-  Escudo Violeta · Liga Jovem Sebrae 2026
-</footer>
-
 <!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
@@ -698,7 +733,7 @@ function mkIcon(cor, emoji, sz) {
 const layG = L.layerGroup().addTo(mapa);
 const layM = L.layerGroup().addTo(mapa);
 let layHeat=null, rotaLay=null, chegCircle=null;
-const marcadores = {}; // id → marker
+const marcadores = {};
 
 function camada(tipo) {
   if (tipo==='geral')    document.getElementById('chk-g').checked ? mapa.addLayer(layG) : mapa.removeLayer(layG);
@@ -810,7 +845,6 @@ async function loadM() {
   } catch { si('lista-m', vazio('Erro ao carregar.')); }
 }
 
-/* ── MARCADORES COM TAMANHO PROPORCIONAL ── */
 function contarPerto(lat, lng, arr) {
   return arr.filter(a => a.lat && a.lng && Math.abs(a.lat-lat)<.0015 && Math.abs(a.lng-lng)<.0015).length;
 }
@@ -856,14 +890,11 @@ function pulsarMarcador(id) {
   }, 3500);
 }
 
-/* ── CLICK NO MARCADOR → ABRE PAINEL ── */
 function aoClicarMarcador(alerta) {
   const local = displayLocal(alerta);
   const quando = tempoAtras(alerta.data, alerta.hora);
   const count  = [...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geodist(a.lat,a.lng,alerta.lat,alerta.lng)<200).length;
-
   mapa.flyTo([alerta.lat, alerta.lng], 16, { duration:1 });
-
   if (isMob()) {
     const fem = dadosM.some(x=>x.id===alerta.id);
     const card = fem ? cardM(alerta) : cardG(alerta);
@@ -873,7 +904,6 @@ function aoClicarMarcador(alerta) {
     si('bs-lista-g', card + mais);
     abrirBsheet();
   } else {
-    // preenche detalhe no painel
     const sd = document.getElementById('sel-det');
     sd.classList.add('vis');
     si('sd-nome', esc(alerta.descricao || alerta.categoria || 'Ocorrência'));
@@ -892,10 +922,10 @@ let gavetaAb = false;
 let tabAtual = 'feed';
 
 const TABS = {
-  feed:    { titulo:'Últimos alertas',    sib:'sib-feed',     ptab:'pt-feed'     },
-  dados:   { titulo:'Painel da Prefeitura', sib:'sib-dados',  ptab:'pt-dados'    },
-  hist:    { titulo:'Histórico semanal',  sib:'sib-hist',     ptab:'pt-hist'     },
-  chegando:{ titulo:'Segurança',          sib:'sib-chegando', ptab:'pt-chegando' },
+  feed:    { titulo:'Últimos alertas',      sib:'sib-feed',     ptab:'pt-feed'     },
+  dados:   { titulo:'Painel da Prefeitura', sib:'sib-dados',    ptab:'pt-dados'    },
+  hist:    { titulo:'Histórico semanal',    sib:'sib-hist',     ptab:'pt-hist'     },
+  chegando:{ titulo:'Segurança',            sib:'sib-chegando', ptab:'pt-chegando' },
 };
 
 function setTab(id) {
@@ -957,14 +987,12 @@ function setBstab(btn, id) {
   if (id==='bs-hist') setTimeout(buildHistoricoMob, 50);
 }
 
-// Swipe para fechar
 document.getElementById('bs-hwrap').addEventListener('touchstart', e=>{ bsTouchY=e.touches[0].clientY; });
 document.getElementById('bs-hwrap').addEventListener('touchend', e=>{
   if (bsTouchY===null) return;
   if (e.changedTouches[0].clientY - bsTouchY > 55) fecharBsheet();
   bsTouchY=null;
 });
-// Swipe para abrir no mapa
 document.getElementById('swipe-handle').addEventListener('touchstart', e=>{ bsTouchY=e.touches[0].clientY; });
 document.getElementById('swipe-handle').addEventListener('touchend', e=>{
   if (bsTouchY===null) return;
@@ -1252,6 +1280,38 @@ new ResizeObserver(()=>{
   if(document.getElementById('pt-hist').style.display!=='none') buildHistorico();
   if(document.getElementById('bs-hist')?.style.display!=='none') buildHistoricoMob();
 }).observe(document.querySelector('.g-panel'));
+
+/* ── QR CODE ── */
+function abrirQR(){document.getElementById('qr-overlay').classList.add('vis')}
+function fecharQR(e){if(!e||e.target===document.getElementById('qr-overlay'))document.getElementById('qr-overlay').classList.remove('vis')}
+
 </script>
+
+<footer style="
+  position:fixed;bottom:0;left:0;
+  font-family:'DM Sans',sans-serif;
+  font-size:.65rem;color:var(--cinza);
+  padding:4px 12px;
+  pointer-events:none;
+  z-index:100;
+">
+  Escudo Violeta · Liga Jovem Sebrae 2026
+</footer>
+
+<!-- QR CODE MODAL -->
+<div class="qr-overlay" id="qr-overlay" onclick="fecharQR(event)">
+  <div class="qr-card" onclick="event.stopPropagation()">
+    <h3>🛡️ Escudo Violeta</h3>
+    <p>Escaneie para acessar o mapa<br>ou entrar no Espaço Seguro</p>
+    <img class="qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://escudo-violeta.pages.dev" alt="QR Code do site" loading="lazy">
+    <div class="qr-url">https://escudo-violeta.pages.dev</div>
+    <div class="tg-strip">
+      <a href="https://t.me/RedeSeguraSaoSebastiao" target="_blank" class="tg-btn">🚨 Enviar alerta</a>
+      <a href="https://t.me/RedeSeguraSaoSebastiao?start=registrar" target="_blank" class="tg-btn fem">💜 Espaço Seguro</a>
+    </div>
+    <button class="qr-close" onclick="fecharQR()">Fechar</button>
+  </div>
+</div>
+
 </body>
 </html>
