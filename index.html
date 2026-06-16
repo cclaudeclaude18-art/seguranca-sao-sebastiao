@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Rede Segura · São Sebastião · v3</title>
+<title>Escudo Violeta · Rede de Segurança · São Sebastião DF</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
@@ -450,7 +450,7 @@ canvas{display:block;width:100%}
 
 <!-- NAV -->
 <nav>
-  <a href="#" class="nav-logo"><span class="nav-dot"></span>Rede Segura</a>
+  <a href="#" class="nav-logo"><span class="nav-dot"></span>Escudo Violeta</a>
   <div class="vivo"><span class="vdot"></span><span>ao vivo</span></div>
   <div class="nav-agora" id="nav-agora"></div>
   <button class="nav-ic" id="btn-noite" onclick="alternarNoite()" title="Modo noturno">🌙</button>
@@ -645,6 +645,17 @@ canvas{display:block;width:100%}
     </div>
   </div>
 </div>
+
+<footer style="
+  position:fixed;bottom:0;left:0;
+  font-family:'DM Sans',sans-serif;
+  font-size:.65rem;color:var(--cinza);
+  padding:4px 12px;
+  pointer-events:none;
+  z-index:100;
+">
+  Escudo Violeta · Liga Jovem Sebrae 2026
+</footer>
 
 <!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1010,7 +1021,7 @@ function cardG(a) {
   const cls=sos?'b-sos':ok?'b-ok':'b-pend';
   const lbl=sos?'🆘 SOS':ok?`✓ ${a.confirmacoes||0} conf.`:'pendente';
   const local=displayLocal(a);
-  const wpp=encodeURIComponent(`🚨 Alerta em ${local}: ${a.descricao||''} (${tempoAtras(a.data,a.hora)}) — Rede Segura São Sebastião`);
+  const wpp=encodeURIComponent(`🚨 Alerta em ${local}: ${a.descricao||''} (${tempoAtras(a.data,a.hora)}) — Escudo Violeta São Sebastião`);
   const btnConf=isFemReport(a)?'':`<button class="acbtn" onclick="event.stopPropagation();confirmar('${a.id}')">👍 Confirmar</button>`;
   return `<div class="acard" onclick="aoClicarCard(${JSON.stringify(a)})">
     <div class="atop"><div class="adesc">${esc(a.descricao||'Ocorrência')}</div><span class="abadge ${cls}">${lbl}</span></div>
@@ -1025,7 +1036,7 @@ function cardG(a) {
 function cardM(a) {
   const sos=(a.categoria||'').toLowerCase().includes('ajuda');
   const local=displayLocal(a);
-  const wpp=encodeURIComponent(`🚺 Relato em ${local}: ${a.categoria||''} (${tempoAtras(a.data,a.hora)}) — Rede Segura São Sebastião`);
+  const wpp=encodeURIComponent(`🚺 Relato em ${local}: ${a.categoria||''} (${tempoAtras(a.data,a.hora)}) — Escudo Violeta São Sebastião`);
   return `<div class="acard" onclick="aoClicarCard(${JSON.stringify(a)})">
     <div class="atop"><div class="adesc">${esc(a.categoria||'Relato anônimo')}</div><span class="abadge ${sos?'b-sos':'b-anon'}">${sos?'🆘 SOS':'anônimo'}</span></div>
     <div class="aloc" data-lid="${a.id}">📍 ${esc(local)} <span style="opacity:.5;margin-left:3px">· ${tempoAtras(a.data,a.hora)}</span></div>
@@ -1231,7 +1242,7 @@ function vizNotif(alerta){
   si('viz-txt',`🚨 ${esc(alerta.descricao||'Novo alerta')} · ${esc(alerta.local||'')}`);
   b.classList.add('vis');setTimeout(()=>b.classList.remove('vis'),8000);
   if(Notification.permission==='granted')
-    new Notification('🚨 Rede Segura — São Sebastião',{body:`${alerta.descricao||'Nova ocorrência'}\n📍 ${alerta.local||''}`});
+    new Notification('🚨 Escudo Violeta — São Sebastião',{body:`${alerta.descricao||'Nova ocorrência'}\n📍 ${alerta.local||''}`});
 }
 
 /* ── INIT ── */
