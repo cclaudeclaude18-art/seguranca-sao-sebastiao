@@ -2,257 +2,1245 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa de Segurança — São Sebastião DF</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Rede Segura · São Sebastião · v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: sans-serif; background: #FAF7F2; }
-  #mapa { height: 100vh; width: 100%; }
+/* ═══ TOKENS ═══ */
+:root {
+  --creme:    #FAF7F2;  --creme2:   #F3EDE3;  --branco:   #FDFCFA;
+  --preto:    #1C1917;  --lilas:    #8B5E9E;  --lilas-cl: #EFE6F5;
+  --lilas-m:  #B08EC0;  --rosa:     #C97B8A;  --rosa-cl:  #F7EAED;
+  --verde:    #4A7C6F;  --verde-cl: #E2EFEC;  --cinza:    #6B6560;
+  --borda:    rgba(28,25,23,.09);
+  --sombra:   0 2px 16px rgba(28,25,23,.08);
+  --r:        12px;
+  --nav:      48px;
+  --strip:    60px;   /* gaveta colapsada */
+  --panel:    348px;  /* gaveta expandida */
+  --bbar:     68px;   /* bottom bar mobile */
+}
+[data-noite] {
+  --creme:#2D1F3D; --creme2:#241630; --branco:#362447;
+  --preto:#EDE8F5; --borda:rgba(240,235,247,.10);
+  --sombra:0 2px 16px rgba(0,0,0,.35); --cinza:#B0A7C0;
+}
 
-  .controles {
-    position: absolute; top: 12px; right: 12px; z-index: 1000;
-    background: rgba(250,247,242,0.97);
-    border: 1px solid rgba(28,25,23,0.08);
-    border-radius: 14px; padding: 16px 18px;
-    box-shadow: 0 2px 16px rgba(28,25,23,0.08);
-    font-size: 13px; min-width: 180px;
-  }
-  .controles strong {
-    display: block; margin-bottom: 10px;
-    font-size: 0.68rem; letter-spacing: 0.12em;
-    text-transform: uppercase; color: #6B6560;
-  }
-  .controles label {
-    display: flex; align-items: center; gap: 8px;
-    cursor: pointer; margin-bottom: 8px;
-    font-size: 0.83rem; color: #1C1917;
-  }
-  .controles label:last-child { margin-bottom: 0; }
-  .dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
-  .dot-confirmado { background: #e74c3c; }
-  .dot-pendente   { background: #999; }
-  .dot-mulher     { background: #8B5E9E; }
-  .dot-sos        { background: #C2185B; }
+/* ═══ RESET ═══ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;font-weight:300;background:var(--creme);color:var(--preto);transition:background .4s,color .4s}
+body[data-noite]{font-weight:400}
+button,input{font-family:inherit}
+a{text-decoration:none}
 
-  .legenda {
-    position: absolute; bottom: 24px; left: 12px; z-index: 1000;
-    background: rgba(250,247,242,0.97);
-    border: 1px solid rgba(28,25,23,0.08);
-    border-radius: 14px; padding: 14px 18px;
-    box-shadow: 0 2px 16px rgba(28,25,23,0.08);
-    font-size: 12px;
-  }
-  .legenda strong {
-    display: block; margin-bottom: 8px;
-    font-size: 0.68rem; letter-spacing: 0.12em;
-    text-transform: uppercase; color: #6B6560;
-  }
-  .leg-item {
-    display: flex; align-items: center; gap: 7px;
-    margin-bottom: 5px; color: #1C1917; font-size: 0.8rem;
-  }
-  .leg-item:last-child { margin-bottom: 0; }
+@keyframes pulsar   {0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}
+@keyframes entrar   {from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn  {from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes mkpulse  {0%,100%{transform:scale(1) rotate(-45deg)}35%{transform:scale(1.55) rotate(-45deg)}70%{transform:scale(.88) rotate(-45deg)}}
 
-  .contador {
-    position: absolute; top: 12px; left: 12px; z-index: 1000;
-    background: rgba(250,247,242,0.97);
-    border: 1px solid rgba(28,25,23,0.08);
-    border-radius: 14px; padding: 14px 18px;
-    box-shadow: 0 2px 16px rgba(28,25,23,0.08);
-    text-align: center;
-  }
-  .contador-num {
-    font-size: 2rem; font-weight: 700;
-    color: #8B5E9E; line-height: 1;
-  }
-  .contador-label {
-    font-size: 0.7rem; color: #6B6560;
-    margin-top: 4px; line-height: 1.4;
-    text-transform: uppercase; letter-spacing: 0.08em;
-  }
+/* ═══ NAV ═══ */
+nav {
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  height:var(--nav);
+  background:rgba(250,247,242,.96);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--borda);
+  display:flex;align-items:center;padding:0 18px;gap:10px;
+  transition:background .4s;
+}
+[data-noite] nav{background:rgba(45,31,61,.96)}
+.nav-logo{
+  font-family:'Cormorant Garamond',serif;font-size:.95rem;font-weight:600;
+  color:var(--preto);display:flex;align-items:center;gap:7px;margin-right:auto;
+}
+.nav-dot{width:7px;height:7px;border-radius:50%;background:var(--lilas);animation:pulsar 3s ease-in-out infinite;flex-shrink:0}
+.vivo{display:flex;align-items:center;gap:5px;background:var(--lilas);border-radius:100px;padding:5px 12px;font-size:.7rem;font-weight:500;color:#fff;white-space:nowrap}
+.vdot{width:5px;height:5px;border-radius:50%;background:#fff;animation:pulsar 1.5s ease-in-out infinite}
+.nav-agora{font-size:.76rem;color:var(--cinza);white-space:nowrap}
+.nav-agora strong{color:var(--lilas)}
+.nav-ic{width:32px;height:32px;border-radius:50%;border:1px solid var(--borda);background:transparent;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:background .2s;color:var(--preto)}
+.nav-ic:hover{background:var(--lilas-cl)}
+@media(max-width:600px){nav{padding:0 12px;gap:6px}.vivo span:last-child{display:none}.vivo{padding:6px}.nav-agora{display:none}}
 
-  .ao-vivo {
-    position: absolute; top: 120px; left: 12px; z-index: 1000;
-    background: rgba(250,247,242,0.97);
-    border: 1px solid rgba(139,94,158,0.2);
-    border-radius: 100px; padding: 6px 14px;
-    display: flex; align-items: center; gap: 6px;
-    font-size: 0.72rem; font-weight: 600;
-    color: #8B5E9E; letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .ao-vivo-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #8B5E9E;
-    animation: pulsar 2s ease-in-out infinite;
-  }
-  @keyframes pulsar {
-    0%,100% { opacity:1; transform:scale(1); }
-    50% { opacity:0.3; transform:scale(0.6); }
-  }
+/* ═══ STAGE ═══ */
+.stage{position:fixed;top:var(--nav);left:0;right:0;bottom:0;overflow:hidden}
 
-  @media(max-width:600px) {
-    .controles { top:auto; bottom:80px; right:8px; padding:12px 14px; }
-    .legenda { display:none; }
-    .contador { top:8px; left:8px; padding:10px 14px; }
-    .ao-vivo { top:auto; bottom:8px; left:8px; }
-  }
+/* ═══ MAPA ═══ */
+#mapa{position:absolute;inset:0;z-index:1}
+
+/* ═══ GAVETA (overlay direito, desktop) ═══ */
+.gaveta{
+  position:absolute;top:0;right:0;bottom:0;z-index:200;
+  display:flex;pointer-events:none;
+}
+
+/* STRIP — sempre visível */
+.g-strip{
+  width:var(--strip);flex-shrink:0;
+  background:rgba(253,252,250,.96);backdrop-filter:blur(12px);
+  border-left:1px solid var(--borda);
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 0 10px;gap:10px;pointer-events:all;
+  transition:background .4s;
+}
+[data-noite] .g-strip{background:rgba(54,36,71,.96)}
+
+.strip-agora{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  background:var(--lilas-cl);border-radius:10px;padding:8px 4px;width:40px;cursor:pointer;
+}
+.strip-agora-n{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:300;color:var(--lilas);line-height:1}
+.strip-agora-l{font-size:.5rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--lilas-m)}
+
+.g-div{width:30px;height:1px;background:var(--borda)}
+
+/* BADGE CONTADOR NO STRIP */
+.strip-agora{position:relative}
+.strip-cnt{
+  position:absolute;top:-5px;right:-7px;
+  min-width:17px;height:17px;
+  background:#E53935;color:#fff;border-radius:10px;
+  padding:0 4px;font-size:.54rem;font-weight:700;line-height:1;
+  display:none;align-items:center;justify-content:center;
+  border:2px solid var(--creme);
+}
+[data-noite] .strip-cnt{border-color:var(--creme2)}
+.strip-cnt.vis{display:flex}
+
+.sib{
+  width:38px;height:38px;border-radius:9px;border:none;background:transparent;
+  cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
+  color:var(--cinza);transition:all .2s;
+}
+.sib:hover,.sib.on{background:var(--lilas-cl);color:var(--lilas)}
+.sib.on{box-shadow:inset 0 0 0 1.5px rgba(139,94,158,.3)}
+
+.g-toggle{margin-top:auto;font-size:.7rem;transition:transform .3s}
+.gaveta.ab .g-toggle{transform:rotate(180deg)}
+
+/* PAINEL — desliza da direita */
+.g-panel{
+  width:var(--panel);background:var(--creme);
+  border-left:1px solid var(--borda);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);opacity:0;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;
+  pointer-events:none;overflow:hidden;
+}
+.gaveta.ab .g-panel{transform:translateX(0);opacity:1;pointer-events:all}
+
+/* DETALHE DE MARCADOR SELECIONADO */
+.sel-detalhe{padding:12px 14px;border-bottom:1px solid var(--borda);display:none}
+.sel-detalhe.vis{display:block;animation:entrar .22s ease}
+.sel-nome{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;margin-bottom:4px}
+.sel-meta{font-size:.74rem;color:var(--cinza);line-height:1.6}
+.sel-score{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:3px 9px;border-radius:100px;font-size:.68rem;font-weight:500}
+.ss-ok{background:var(--verde-cl);color:var(--verde)}
+.ss-med{background:var(--lilas-cl);color:var(--lilas)}
+.ss-mal{background:var(--rosa-cl);color:var(--rosa)}
+
+/* PANEL HEADER */
+.pnl-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 15px;border-bottom:1px solid var(--borda);
+  background:var(--branco);flex-shrink:0;transition:background .4s;
+}
+.pnl-titulo{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600}
+.pnl-fechar{
+  width:26px;height:26px;border-radius:50%;border:none;
+  background:var(--creme2);cursor:pointer;font-size:.72rem;
+  display:flex;align-items:center;justify-content:center;color:var(--cinza);
+}
+.pnl-fechar:hover{background:var(--lilas-cl);color:var(--lilas)}
+
+/* PANEL TABS */
+.pnl-tabs{display:flex;border-bottom:1px solid var(--borda);flex-shrink:0;background:var(--branco)}
+.ptab{
+  flex:1;padding:9px 5px;border:none;background:transparent;
+  font-size:.66rem;font-weight:500;color:var(--cinza);cursor:pointer;
+  letter-spacing:.06em;text-transform:uppercase;
+  border-bottom:2px solid transparent;transition:all .2s;
+}
+.ptab.on{color:var(--lilas);border-bottom-color:var(--lilas)}
+
+.pnl-body{flex:1;overflow-y:auto}
+.pnl-body::-webkit-scrollbar{width:3px}
+.pnl-body::-webkit-scrollbar-thumb{background:var(--lilas-m);border-radius:2px}
+
+/* ═══ FILTRO HORÁRIO (overlay mapa) ═══ */
+.filtro-overlay{
+  position:absolute;top:12px;left:12px;z-index:200;
+  background:rgba(253,252,250,.96);backdrop-filter:blur(8px);
+  border:1px solid var(--borda);border-radius:var(--r);
+  padding:12px 14px;width:230px;box-shadow:var(--sombra);
+  transition:background .4s;
+}
+[data-noite] .filtro-overlay{background:rgba(54,36,71,.96)}
+.f-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.f-lbl{font-size:.6rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--lilas)}
+.f-val{font-family:'Cormorant Garamond',serif;font-size:.85rem;font-style:italic;color:var(--preto)}
+.sw{position:relative;height:20px;display:flex;align-items:center}
+.st{position:absolute;left:0;right:0;height:3px;background:var(--borda);border-radius:2px}
+.sf{position:absolute;height:3px;background:var(--lilas);border-radius:2px}
+.ri{position:absolute;width:100%;-webkit-appearance:none;appearance:none;background:transparent;height:20px;cursor:pointer;pointer-events:none}
+.ri::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--lilas);border:2px solid #fff;box-shadow:0 1px 5px rgba(139,94,158,.4);pointer-events:all}
+.ri::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--lilas);border:2px solid #fff;pointer-events:all}
+#smax{z-index:2}
+.fh{display:flex;justify-content:space-between;margin-top:5px;font-size:.58rem;color:var(--cinza)}
+.camadas{margin-top:10px;padding-top:9px;border-top:1px solid var(--borda);display:flex;flex-direction:column;gap:5px}
+.cam-lbl{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--preto);cursor:pointer}
+.cam-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ═══ FEED CARDS ═══ */
+.feed-sec{padding:13px 13px 4px}
+.feed-tit{
+  font-size:.59rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--lilas);display:flex;align-items:center;gap:7px;margin-bottom:10px;
+}
+.feed-tit::before{content:'';width:13px;height:1px;background:var(--lilas)}
+.fcnt{background:var(--lilas);color:#fff;border-radius:100px;padding:1px 6px;font-size:.57rem;font-weight:500}
+
+.acard{
+  background:var(--branco);border:1px solid var(--borda);border-radius:var(--r);
+  padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:all .2s;
+}
+.acard:hover{border-color:var(--lilas-m);box-shadow:var(--sombra)}
+.acard.sel{border-color:var(--lilas);background:var(--lilas-cl)}
+.acard:last-child{margin-bottom:0}
+.atop{display:flex;justify-content:space-between;align-items:flex-start;gap:7px}
+.adesc{font-size:.81rem;font-weight:500;color:var(--preto);line-height:1.4;flex:1}
+.abadge{font-size:.62rem;font-weight:500;padding:2px 7px;border-radius:100px;white-space:nowrap;flex-shrink:0}
+.b-ok {background:var(--verde-cl);color:var(--verde)}
+.b-pend{background:var(--lilas-cl);color:var(--lilas)}
+.b-sos {background:#FDECEA;color:#C62828}
+.b-anon{background:var(--creme2);color:var(--cinza)}
+.aloc{font-size:.71rem;color:var(--cinza);margin-top:4px;line-height:1.4}
+.aacoes{display:flex;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--borda)}
+.acbtn{
+  flex:1;padding:7px 5px;border:1px solid var(--borda);border-radius:7px;
+  background:transparent;font-size:.68rem;color:var(--cinza);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:3px;transition:all .2s;min-height:34px;
+}
+.acbtn:hover{background:var(--lilas-cl);border-color:var(--lilas-m);color:var(--lilas)}
+.acbtn.wpp:hover{background:#E8F5E9;border-color:#81C784;color:#2E7D32}
+
+/* ═══ DADOS PREFEITURA ═══ */
+.dados-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:13px 13px 6px}
+.dcard{background:var(--branco);border:1px solid var(--borda);border-radius:var(--r);padding:10px;transition:background .4s}
+.dval{font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:300;color:var(--lilas);line-height:1}
+.dlbl{font-size:.66rem;color:var(--cinza);margin-top:2px;line-height:1.4}
+.tabela-cat{width:100%;border-collapse:collapse;font-size:.76rem}
+.tabela-cat th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--borda);font-size:.59rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza)}
+.tabela-cat td{padding:7px 8px;border-bottom:1px solid var(--borda);color:var(--preto)}
+.tabela-cat tr:last-child td{border-bottom:none}
+.bwrap{height:3px;background:var(--creme2);border-radius:2px;margin-top:3px}
+.bfill{height:3px;background:var(--lilas);border-radius:2px;transition:width .5s}
+
+/* ═══ CHART ═══ */
+.chart-box{background:var(--branco);border:1px solid var(--borda);border-radius:var(--r);padding:12px;margin-bottom:9px;transition:background .4s}
+canvas{display:block;width:100%}
+
+/* ═══ WIDGETS (CHEGANDO + ROTA) ═══ */
+.widgets-wrap{padding:11px}
+.widget{background:var(--creme2);border:1px solid var(--borda);border-radius:var(--r);margin-bottom:7px;overflow:hidden;transition:border-color .2s,background .4s}
+.widget:hover{border-color:var(--lilas-m)}
+.whead{display:flex;align-items:center;gap:7px;padding:10px 12px;cursor:pointer;user-select:none}
+.wic{font-size:.9rem;flex-shrink:0}
+.wtit{font-family:'Cormorant Garamond',serif;font-size:.9rem;font-weight:600;flex:1;color:var(--preto)}
+.warr{font-size:.65rem;color:var(--cinza);transition:transform .22s}
+.whead.ab .warr{transform:rotate(180deg)}
+.wcorpo{padding:11px;display:none}
+.wcorpo.ab{display:block;animation:entrar .2s ease}
+
+.widget-rota{background:linear-gradient(140deg,#241430,#1A1028);border-color:rgba(176,142,192,.2)}
+.widget-rota .wtit{color:#fff}
+.widget-rota .warr{color:var(--lilas-m)}
+.widget-rota:hover{border-color:rgba(176,142,192,.35)}
+.rota-txt{font-size:.76rem;color:rgba(255,255,255,.55);line-height:1.7;margin-bottom:11px}
+.rota-txt em{color:var(--lilas-m);font-style:italic}
+.rota-in{
+  width:100%;padding:8px 10px;border:1px solid rgba(176,142,192,.3);
+  border-radius:8px;background:rgba(255,255,255,.08);
+  font-size:.77rem;color:#fff;outline:none;transition:border-color .2s;margin-bottom:6px;
+}
+.rota-in::placeholder{color:rgba(255,255,255,.3)}
+.rota-in:focus{border-color:var(--lilas-m)}
+.rota-score{border-radius:9px;padding:10px;text-align:center;display:none;margin-top:7px}
+.rota-score.vis{display:block;animation:entrar .2s ease}
+.rota-num{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;line-height:1}
+
+.cdot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s}
+.cdot.ok{background:#4CAF50;animation:pulsar 1.5s ease-in-out infinite}
+.cdot.alerta{background:#FF5722;animation:pulsar .8s ease-in-out infinite}
+.cbox{background:var(--rosa-cl);border:1px solid rgba(201,123,138,.2);border-radius:7px;padding:8px 10px;font-size:.73rem;color:#7A3A48;line-height:1.65;margin-bottom:8px;display:none}
+.cbox.vis{display:block;animation:entrar .2s ease}
+
+/* ═══ BOTÕES ═══ */
+.btn{
+  width:100%;padding:10px;border:none;border-radius:9px;
+  background:var(--lilas);color:#fff;font-size:.77rem;font-weight:500;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px;min-height:40px;
+}
+.btn:hover{background:#7A5190}
+.btn.sec{background:transparent;color:var(--lilas);border:1px solid rgba(139,94,158,.28)}
+.btn.sec:hover{background:var(--lilas-cl)}
+.btn.verde{background:var(--verde)}.btn.verde:hover{background:#3d6b5f}
+.btn.branco{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.btn.branco:hover{background:rgba(255,255,255,.22)}
+
+/* ═══ SOS (desktop) ═══ */
+.sos-fab{
+  position:fixed;bottom:22px;right:calc(var(--strip) + 18px);z-index:800;
+  width:58px;height:58px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,#5C2D7E,#8B5E9E);color:#fff;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  animation:sos-p 3s ease-in-out infinite;
+  box-shadow:0 4px 18px rgba(139,94,158,.5);text-decoration:none;transition:transform .2s;
+}
+@keyframes sos-p{0%,100%{box-shadow:0 4px 18px rgba(139,94,158,.55)}50%{box-shadow:0 4px 28px rgba(139,94,158,.9),0 0 0 10px rgba(139,94,158,.15)}}
+@keyframes sos-pd{0%,100%{box-shadow:0 4px 22px rgba(229,57,53,.7)}50%{box-shadow:0 6px 38px rgba(229,57,53,1),0 0 0 15px rgba(229,57,53,.2)}}
+[data-noite] .sos-fab{background:linear-gradient(135deg,#C62828,#E53935);box-shadow:0 4px 22px rgba(198,40,40,.6);animation:sos-pd 2s ease-in-out infinite}
+.sos-fab:hover{transform:scale(1.08)}
+.sos-fab span:first-child{font-size:1.1rem;line-height:1}
+.sos-fab span:last-child{font-size:.57rem;font-weight:700;color:#fff;letter-spacing:.04em}
+
+/* REGISTRAR (desktop) */
+.reg-fab{
+  position:fixed;bottom:90px;right:calc(var(--strip) + 16px);z-index:800;
+  background:var(--lilas);color:#fff;border:none;border-radius:100px;
+  padding:10px 18px;font-size:.77rem;font-weight:500;
+  cursor:pointer;box-shadow:0 3px 14px rgba(139,94,158,.45);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  text-decoration:none;transition:all .2s;
+  animation:entrar .4s .15s ease both;
+}
+.reg-fab:hover{background:#7A5190;transform:translateY(-1px)}
+.reg-sub{font-size:.59rem;opacity:.75;font-weight:400;letter-spacing:.01em}
+
+/* ═══ MOBILE BOTTOM BAR ═══ */
+.bbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:800;
+  height:var(--bbar);
+  background:rgba(253,252,250,.97);backdrop-filter:blur(14px);
+  border-top:1px solid var(--borda);
+  display:none;align-items:center;padding:0 14px;gap:10px;
+  padding-bottom:env(safe-area-inset-bottom);
+  transition:background .4s;
+}
+[data-noite] .bbar{background:rgba(54,36,71,.97)}
+
+.bbar-sos{
+  width:50px;height:50px;border-radius:50%;border:none;flex-shrink:0;
+  background:linear-gradient(135deg,#5C2D7E,#8B5E9E);color:#fff;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 3px 12px rgba(139,94,158,.5);animation:sos-p 3s ease-in-out infinite;
+  text-decoration:none;
+}
+[data-noite] .bbar-sos{background:linear-gradient(135deg,#C62828,#E53935);box-shadow:0 3px 12px rgba(198,40,40,.5);animation:sos-pd 2s ease-in-out infinite}
+.bbar-sos span:first-child{font-size:.95rem;line-height:1}
+.bbar-sos span:last-child{font-size:.5rem;font-weight:700;color:#fff}
+
+.bbar-reg{
+  flex:1;height:44px;border-radius:100px;border:none;
+  background:var(--lilas);color:#fff;font-size:.77rem;font-weight:500;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  text-decoration:none;min-height:44px;
+}
+
+.bbar-agora{
+  display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;cursor:pointer;
+}
+.bbar-agora-n{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;color:var(--lilas);line-height:1}
+.bbar-agora-l{font-size:.5rem;text-transform:uppercase;letter-spacing:.05em;color:var(--cinza)}
+
+.bbar-menu{
+  width:38px;height:38px;border-radius:9px;border:1px solid var(--borda);
+  background:transparent;cursor:pointer;font-size:.95rem;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.bbar-modo{
+  width:38px;height:38px;border-radius:9px;border:1px solid var(--borda);
+  background:transparent;cursor:pointer;font-size:.9rem;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+
+/* SWIPE HANDLE */
+.swipe-handle{
+  position:fixed;bottom:var(--bbar);left:0;right:0;z-index:799;
+  height:26px;display:none;align-items:center;justify-content:center;cursor:pointer;
+}
+.swipe-bar{width:40px;height:4px;border-radius:2px;background:var(--lilas-m);opacity:.55}
+
+/* ═══ BOTTOM SHEET (mobile) ═══ */
+.bsheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:750;
+  background:var(--creme);border-radius:18px 18px 0 0;
+  border-top:1px solid var(--borda);box-shadow:0 -4px 28px rgba(28,25,23,.12);
+  height:60vh;transform:translateY(100%);
+  display:none;flex-direction:column;
+  transition:background .4s,transform .35s cubic-bezier(.4,0,.2,1);
+}
+.bsheet.open{transform:translateY(0)}
+.bs-handle-wrap{padding:10px;display:flex;justify-content:center;flex-shrink:0;cursor:grab;touch-action:none}
+.bs-handle{width:36px;height:4px;border-radius:2px;background:var(--borda)}
+.bs-tabs{display:flex;border-bottom:1px solid var(--borda);flex-shrink:0;background:var(--branco)}
+.bstab{flex:1;padding:10px 5px;border:none;background:transparent;font-size:.65rem;font-weight:500;color:var(--cinza);cursor:pointer;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid transparent;transition:all .2s}
+.bstab.on{color:var(--lilas);border-bottom-color:var(--lilas)}
+.bs-body{flex:1;overflow-y:auto;padding-bottom:82px}
+.bs-body::-webkit-scrollbar{width:3px}
+.bs-body::-webkit-scrollbar-thumb{background:var(--lilas-m);border-radius:2px}
+
+/* ═══ TOAST ═══ */
+#toasts{position:fixed;top:calc(var(--nav)+10px);right:14px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--branco);border:1px solid var(--borda);border-radius:var(--r);padding:9px 13px;max-width:280px;box-shadow:var(--sombra);font-size:.77rem;pointer-events:all;animation:slideIn .3s ease;display:flex;gap:8px;align-items:flex-start}
+[data-noite] .toast{background:rgba(54,36,71,.98)}
+.toast.lilas{border-left:3px solid var(--lilas)}
+.toast.verde{border-left:3px solid var(--verde)}
+.toast.verm{border-left:3px solid #E53935}
+.toast p{flex:1;line-height:1.5;color:var(--preto)}
+.toast strong{display:block;font-weight:500;margin-bottom:1px}
+.tx{background:none;border:none;cursor:pointer;color:var(--cinza);font-size:.9rem;flex-shrink:0;line-height:1}
+
+/* VIZINHANÇA BANNER */
+.viz-banner{position:fixed;top:var(--nav);left:0;right:0;z-index:950;background:var(--lilas);color:#fff;padding:8px 18px;display:none;align-items:center;gap:10px;font-size:.77rem;animation:entrar .3s ease}
+.viz-banner.vis{display:flex}
+.viz-banner p{flex:1}
+.vbx{background:rgba(255,255,255,.2);border:none;border-radius:5px;padding:4px 10px;color:#fff;cursor:pointer;font-size:.7rem}
+
+/* LEGIBILIDADE NOTURNA */
+[data-noite] .adesc{font-weight:500}
+[data-noite] .aloc,[data-noite] .dlbl,[data-noite] .tabela-cat td,[data-noite] .toast p{font-weight:400}
+
+/* EMPTY + SKELETON */
+.empty{text-align:center;padding:28px 14px;color:var(--cinza);font-size:.79rem;line-height:1.8}
+.empty-ic{font-size:1.6rem;opacity:.3;display:block;margin-bottom:6px}
+.skel{background:linear-gradient(90deg,var(--creme2) 25%,var(--creme) 50%,var(--creme2) 75%);background-size:200% 100%;animation:sk 1.4s infinite;border-radius:var(--r)}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* LEAFLET */
+.leaflet-popup-content-wrapper{border-radius:12px !important;font-family:'DM Sans',sans-serif !important;font-size:.78rem !important;box-shadow:var(--sombra) !important}
+.leaflet-popup-content{margin:10px 12px !important;line-height:1.6 !important}
+[data-noite] .leaflet-popup-content-wrapper{background:#362447 !important;color:#EDE8F5 !important}
+
+/* MARCADOR NOVO */
+.mk-novo > div{animation:mkpulse .7s ease forwards}
+
+/* ═══ RESPONSIVE ═══ */
+@media(max-width:1024px){
+  .gaveta{display:none}
+  .filtro-overlay{display:none}
+  .sos-fab,.reg-fab{display:none}
+  .bbar,.swipe-handle{display:flex}
+  .bsheet{display:flex}
+  #mapa{bottom:var(--bbar)}
+}
+@media(max-width:480px){
+  .bbar-agora{display:none}
+}
 </style>
 </head>
 <body>
 
-<div id="mapa"></div>
+<div class="viz-banner" id="viz-banner">
+  <span>🔔</span><p id="viz-txt">Novo alerta</p>
+  <button class="vbx" onclick="document.getElementById('viz-banner').classList.remove('vis')">Fechar</button>
+</div>
+<div id="toasts"></div>
 
-<!-- Contador -->
-<div class="contador">
-  <div class="contador-num" id="total">—</div>
-  <div class="contador-label">alertas<br>registrados</div>
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo"><span class="nav-dot"></span>Rede Segura</a>
+  <div class="vivo"><span class="vdot"></span><span>ao vivo</span></div>
+  <div class="nav-agora" id="nav-agora"></div>
+  <button class="nav-ic" id="btn-noite" onclick="alternarNoite()" title="Modo noturno">🌙</button>
+</nav>
+
+<!-- STAGE -->
+<div class="stage">
+  <div id="mapa"></div>
+
+  <!-- FILTRO (desktop overlay) -->
+  <div class="filtro-overlay">
+    <div class="f-top">
+      <span class="f-lbl">Horário</span>
+      <span class="f-val" id="ftxt">00h — 23h</span>
+    </div>
+    <div class="sw">
+      <div class="st"></div><div class="sf" id="sfill"></div>
+      <input type="range" class="ri" id="smin" min="0" max="23" value="0">
+      <input type="range" class="ri" id="smax" min="0" max="23" value="23">
+    </div>
+    <div class="fh"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div>
+    <div class="camadas">
+      <label class="cam-lbl"><input type="checkbox" id="chk-g" checked onchange="camada('geral')"><span class="cam-dot" style="background:#e74c3c"></span>Alertas</label>
+      <label class="cam-lbl"><input type="checkbox" id="chk-m" checked onchange="camada('mulheres')"><span class="cam-dot" style="background:#8B5E9E"></span>Espaço Seguro</label>
+      <label class="cam-lbl"><input type="checkbox" id="chk-h" onchange="camada('heat')"><span class="cam-dot" style="background:linear-gradient(90deg,#4CAF50,#F44336)"></span>Calor</label>
+    </div>
+  </div>
+
+  <!-- GAVETA (desktop) -->
+  <div class="gaveta" id="gaveta">
+    <div class="g-strip">
+      <!-- agora counter -->
+      <div class="strip-agora" onclick="abrirGaveta()">
+        <div class="strip-agora-n">🔔</div>
+        <div class="strip-cnt" id="strip-cnt"></div>
+        <div class="strip-agora-l" id="agora-n">0</div>
+      </div>
+      <div class="g-div"></div>
+      <button class="sib on" id="sib-feed"     onclick="setTab('feed')"     title="Alertas">🚨</button>
+      <button class="sib"    id="sib-dados"    onclick="setTab('dados')"    title="Prefeitura">📊</button>
+      <button class="sib"    id="sib-hist"     onclick="setTab('hist')"     title="Histórico">📅</button>
+      <button class="sib"    id="sib-chegando" onclick="setTab('chegando')" title="Estou chegando">📍</button>
+      <div class="g-div"></div>
+      <button class="sib g-toggle" id="gtoggle" onclick="toggleGaveta()" title="Abrir">◀</button>
+    </div>
+
+    <div class="g-panel" id="g-panel">
+      <div class="pnl-head">
+        <span class="pnl-titulo" id="pnl-titulo">Últimos alertas</span>
+        <button class="pnl-fechar" onclick="fecharGaveta()">✕</button>
+      </div>
+
+      <!-- detalhe do marcador clicado -->
+      <div class="sel-detalhe" id="sel-det">
+        <div class="sel-nome" id="sd-nome">—</div>
+        <div class="sel-meta" id="sd-meta"></div>
+        <span class="sel-score" id="sd-score"></span>
+      </div>
+
+      <div class="pnl-tabs">
+        <button class="ptab on" onclick="setPtab(this,'pt-feed')">Alertas</button>
+        <button class="ptab"    onclick="setPtab(this,'pt-dados')">Prefeitura</button>
+        <button class="ptab"    onclick="setPtab(this,'pt-hist')">Histórico</button>
+      </div>
+
+      <div class="pnl-body">
+        <!-- ALERTAS -->
+        <div id="pt-feed">
+          <div class="feed-sec">
+            <div class="feed-tit">Alertas gerais <span class="fcnt" id="cnt-g">0</span></div>
+            <div id="lista-g"><div class="skel" style="height:82px;margin-bottom:6px"></div><div class="skel" style="height:82px"></div></div>
+          </div>
+          <div class="feed-sec">
+            <div class="feed-tit">Espaço Seguro <span class="fcnt" id="cnt-m">0</span></div>
+            <div id="lista-m"><div class="skel" style="height:70px;margin-bottom:6px"></div><div class="skel" style="height:70px"></div></div>
+          </div>
+        </div>
+
+        <!-- DADOS PREFEITURA -->
+        <div id="pt-dados" style="display:none">
+          <div class="dados-grid">
+            <div class="dcard"><div class="dval" id="d-tot">—</div><div class="dlbl">Esta semana</div></div>
+            <div class="dcard"><div class="dval" id="d-sos">—</div><div class="dlbl">SOS acionados</div></div>
+            <div class="dcard"><div class="dval" id="d-conf">—</div><div class="dlbl">Confirmados</div></div>
+            <div class="dcard"><div class="dval" id="d-mul">—</div><div class="dlbl">Espaço Seguro</div></div>
+          </div>
+          <div style="padding:0 13px 13px">
+            <div class="feed-tit">Por categoria</div>
+            <div class="dcard"><table class="tabela-cat"><thead><tr><th>Categoria</th><th style="text-align:right">Qtd.</th></tr></thead><tbody id="tbody-cat"></tbody></table></div>
+            <button class="btn sec" style="margin-top:9px" onclick="exportCSV()">📊 Exportar CSV</button>
+          </div>
+        </div>
+
+        <!-- HISTÓRICO -->
+        <div id="pt-hist" style="display:none">
+          <div style="padding:13px">
+            <div class="feed-tit">Últimos 7 dias</div>
+            <div class="chart-box" id="box-sem"><canvas id="c-sem" height="150"></canvas></div>
+            <div class="feed-tit">Horários de pico</div>
+            <div class="chart-box" id="box-pico"><canvas id="c-pico" height="70"></canvas></div>
+          </div>
+        </div>
+
+        <!-- ESTOU CHEGANDO + ROTA -->
+        <div id="pt-chegando" style="display:none">
+          <div class="widgets-wrap">
+            <div class="widget">
+              <div class="whead" onclick="togW('ch')">
+                <span class="wic">📍</span><span class="wtit">Estou chegando</span><span class="warr">▾</span>
+              </div>
+              <div class="wcorpo" id="w-ch">
+                <div style="display:flex;align-items:center;gap:7px;font-size:.77rem;color:var(--cinza);margin-bottom:8px">
+                  <span class="cdot" id="cdot"></span><span id="ctxt">Monitoramento inativo</span>
+                </div>
+                <p style="font-size:.72rem;color:var(--cinza);line-height:1.6;margin-bottom:9px">Avisa se houver alertas em <strong>500m</strong> ao seu redor.</p>
+                <div class="cbox" id="cbox"></div>
+                <button class="btn" id="btn-ch" onclick="togChegando()">Ativar monitoramento</button>
+              </div>
+            </div>
+            <div class="widget widget-rota">
+              <div class="whead" onclick="togW('rota')">
+                <span class="wic">🗺️</span><span class="wtit">Segurança no caminho</span><span class="warr">▾</span>
+              </div>
+              <div class="wcorpo" id="w-rota">
+                <p class="rota-txt">Sentiu desconforto num trajeto? <em>Seu relato protege quem vem depois.</em></p>
+                <input type="text" class="rota-in" id="rota-a" placeholder="📍 Origem">
+                <input type="text" class="rota-in" id="rota-b" placeholder="🏁 Destino">
+                <button class="btn branco" onclick="calcRota()">Verificar segurança</button>
+                <div class="rota-score" id="rota-score">
+                  <div class="rota-num" id="rscore-v">—</div>
+                  <div style="font-size:.69rem;opacity:.75;margin-top:3px" id="rscore-l"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /pnl-body -->
+    </div><!-- /g-panel -->
+  </div><!-- /gaveta -->
+</div><!-- /stage -->
+
+<!-- SOS / REGISTRAR (desktop) -->
+<a href="https://t.me/SEU_BOT_AQUI" target="_blank" class="sos-fab"><span>🆘</span><span>SOS</span></a>
+<a href="https://t.me/SEU_BOT_AQUI" target="_blank" class="reg-fab">
+  <span>💜 Registrar relato</span>
+  <span class="reg-sub">anônimo e seguro</span>
+</a>
+
+<!-- BOTTOM BAR (mobile) -->
+<div class="bbar">
+  <div class="bbar-agora" onclick="abrirBsheet()">
+    <div class="bbar-agora-n" id="agora-n-mob">0</div>
+    <div class="bbar-agora-l">agora</div>
+  </div>
+  <a href="https://t.me/SEU_BOT_AQUI" target="_blank" class="bbar-sos"><span>🆘</span><span>SOS</span></a>
+  <a href="https://t.me/SEU_BOT_AQUI" target="_blank" class="bbar-reg">💜 Registrar</a>
+  <button class="bbar-modo" onclick="alternarNoite()" id="btn-noite-m">🌙</button>
+  <button class="bbar-menu" onclick="bsheetAb?fecharBsheet():abrirBsheet()">☰</button>
 </div>
 
-<!-- Badge ao vivo -->
-<div class="ao-vivo">
-  <span class="ao-vivo-dot"></span>
-  ao vivo
+<!-- SWIPE HANDLE (mobile) -->
+<div class="swipe-handle" id="swipe-handle" onclick="abrirBsheet()">
+  <div class="swipe-bar"></div>
 </div>
 
-<!-- Filtros -->
-<div class="controles">
-  <strong>Filtrar</strong>
-  <label>
-    <input type="checkbox" id="chk-geral" checked>
-    <span class="dot dot-confirmado"></span> Alertas gerais
-  </label>
-  <label>
-    <input type="checkbox" id="chk-mulher" checked>
-    <span class="dot dot-mulher"></span> Espaço Seguro
-  </label>
+<!-- BOTTOM SHEET (mobile) -->
+<div class="bsheet" id="bsheet">
+  <div class="bs-handle-wrap" id="bs-hwrap"><div class="bs-handle"></div></div>
+  <div class="bs-tabs">
+    <button class="bstab on" onclick="setBstab(this,'bs-feed')">Alertas</button>
+    <button class="bstab"    onclick="setBstab(this,'bs-dados')">Prefeitura</button>
+    <button class="bstab"    onclick="setBstab(this,'bs-hist')">Histórico</button>
+  </div>
+  <div class="bs-body">
+    <div id="bs-feed">
+      <div class="feed-sec"><div class="feed-tit">Alertas <span class="fcnt" id="bs-cnt-g">0</span></div><div id="bs-lista-g"></div></div>
+      <div class="feed-sec"><div class="feed-tit">Espaço Seguro <span class="fcnt" id="bs-cnt-m">0</span></div><div id="bs-lista-m"></div></div>
+    </div>
+    <div id="bs-dados" style="display:none">
+      <div class="dados-grid">
+        <div class="dcard"><div class="dval" id="bs-d-tot">—</div><div class="dlbl">Esta semana</div></div>
+        <div class="dcard"><div class="dval" id="bs-d-sos">—</div><div class="dlbl">SOS</div></div>
+        <div class="dcard"><div class="dval" id="bs-d-conf">—</div><div class="dlbl">Confirmados</div></div>
+        <div class="dcard"><div class="dval" id="bs-d-mul">—</div><div class="dlbl">Espaço Seguro</div></div>
+      </div>
+    </div>
+    <div id="bs-hist" style="display:none">
+      <div style="padding:13px">
+        <div class="feed-tit">Últimos 7 dias</div>
+        <div class="chart-box" id="bs-box-sem"><canvas id="bs-c-sem" height="130"></canvas></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Legenda -->
-<div class="legenda">
-  <strong>Legenda</strong>
-  <div class="leg-item"><span class="dot dot-confirmado"></span> Alerta confirmado</div>
-  <div class="leg-item"><span class="dot dot-pendente"></span> Alerta pendente</div>
-  <div class="leg-item"><span class="dot dot-mulher"></span> Espaço Seguro</div>
-  <div class="leg-item"><span class="dot dot-sos"></span> SOS</div>
-</div>
-
+<!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <script>
-  const FB = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
+const FB     = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
+const CENTRO = [-15.8940, -47.7789];
+const isMob  = () => window.innerWidth <= 1024;
 
-  // Centro fixo em São Sebastião DF
-  const mapa = L.map("mapa").setView([-15.9149, -47.8021], 13);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap"
-  }).addTo(mapa);
+/* ── MODO NOTURNO ── */
+let modoForcado = null;
+function aplicarNoite(on) {
+  document.body.toggleAttribute('data-noite', on);
+  document.getElementById('btn-noite').textContent = on ? '☀️' : '🌙';
+  const m = document.getElementById('btn-noite-m');
+  if (m) m.textContent = on ? '☀️' : '🌙';
+}
+function detectarNoite() {
+  if (modoForcado !== null) { aplicarNoite(modoForcado); return; }
+  const h = new Date().getHours();
+  aplicarNoite(h >= 18 || h < 6);
+}
+function alternarNoite() { modoForcado = !document.body.hasAttribute('data-noite'); aplicarNoite(modoForcado); }
+detectarNoite();
+setInterval(detectarNoite, 60000);
 
-  // ── Ícones ────────────────────────────────────────────────
-  function icone(cor, emoji) {
-    return L.divIcon({
-      html: `<div style="background:${cor};width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25)"><span style="transform:rotate(45deg);font-size:16px">${emoji}</span></div>`,
-      className: "",
-      iconSize: [36, 36],
-      iconAnchor: [18, 36]
+/* ── MAPA ── */
+const mapa = L.map('mapa', { zoomControl:false }).setView(CENTRO, 14);
+L.control.zoom({ position:'bottomleft' }).addTo(mapa);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(mapa);
+
+function mkIcon(cor, emoji, sz) {
+  sz = sz || 30;
+  return L.divIcon({
+    html:`<div style="background:${cor};width:${sz}px;height:${sz}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25)"><span style="transform:rotate(45deg);font-size:${Math.round(sz*.45)}px">${emoji}</span></div>`,
+    className:'mk-icon', iconSize:[sz,sz], iconAnchor:[sz/2,sz]
+  });
+}
+
+const layG = L.layerGroup().addTo(mapa);
+const layM = L.layerGroup().addTo(mapa);
+let layHeat=null, rotaLay=null, chegCircle=null;
+const marcadores = {}; // id → marker
+
+function camada(tipo) {
+  if (tipo==='geral')    document.getElementById('chk-g').checked ? mapa.addLayer(layG) : mapa.removeLayer(layG);
+  if (tipo==='mulheres') document.getElementById('chk-m').checked ? mapa.addLayer(layM) : mapa.removeLayer(layM);
+  if (tipo==='heat') {
+    if (document.getElementById('chk-h').checked) { layHeat ? mapa.addLayer(layHeat) : buildHeat(dadosG); }
+    else { if (layHeat) mapa.removeLayer(layHeat); }
+  }
+}
+
+function buildHeat(arr) {
+  const [a,b] = getSlider();
+  const pts = arr.filter(x=>x.lat&&x.lng).filter(x=>{const h=parseH(x.hora);return h===null||(h>=a&&h<=b);})
+    .map(x=>[x.lat,x.lng,(x.confirmacoes||0)*.5+.5]);
+  if (layHeat) mapa.removeLayer(layHeat);
+  layHeat = L.heatLayer(pts,{radius:25,blur:20,maxZoom:16,gradient:{.2:'#4CAF50',.5:'#FFEB3B',.8:'#FF5722',1:'#B71C1C'}});
+  if (document.getElementById('chk-h').checked) mapa.addLayer(layHeat);
+}
+
+/* ── DADOS FIREBASE ── */
+let dadosG=[], dadosM=[], ultimoG=null, ultimoM=null;
+const geocache={}, geocachePend=new Set();
+
+function isNaoLegivel(s){
+  if(!s)return true;
+  if(/^-?\d+[\.,]\d+\s*[,;]\s*-?\d+[\.,]\d+$/.test(s.trim()))return true;
+  if(/^([A-Z]{2}-\d+[;,\s]*)+$/i.test(s.trim()))return true;
+  return false;
+}
+function displayLocal(a){
+  if(a.local&&!isNaoLegivel(a.local))return a.local;
+  if(!a.lat||!a.lng)return'Localização registrada';
+  const k=`${(+a.lat).toFixed(5)},${(+a.lng).toFixed(5)}`;
+  if(geocache[k])return geocache[k];
+  return geocachePend.has(k)?'Localizando...':'Localização registrada';
+}
+function fmtAddr(addr){
+  if(!addr)return'Localização registrada';
+  const p=[addr.road,addr.quarter||addr.suburb||addr.neighbourhood,addr.city_district].filter(Boolean);
+  return p.slice(0,2).join(', ')||addr.city||'Localização registrada';
+}
+async function geocodeAlerts(arr){
+  const byKey={};
+  arr.filter(a=>a.lat&&a.lng&&(!a.local||isNaoLegivel(a.local))).forEach(a=>{
+    const k=`${(+a.lat).toFixed(5)},${(+a.lng).toFixed(5)}`;
+    (byKey[k]=byKey[k]||[]).push(a);
+  });
+  for(const[k,alts]of Object.entries(byKey)){
+    if(geocache[k]!==undefined||geocachePend.has(k))continue;
+    geocachePend.add(k);
+    const[lat,lng]=k.split(',').map(Number);
+    try{
+      const d=await(await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)).json();
+      geocache[k]=fmtAddr(d.address);
+    }catch{geocache[k]='Localização registrada';}
+    geocachePend.delete(k);
+    alts.forEach(a=>{
+      const t=tempoAtras(a.data,a.hora);
+      document.querySelectorAll(`[data-lid="${a.id}"]`).forEach(el=>{
+        el.innerHTML=`📍 ${esc(geocache[k]||'Localização registrada')} <span style="opacity:.5;margin-left:3px">· ${t}</span>`;
+      });
     });
+    await new Promise(r=>setTimeout(r,1300));
   }
-  const icConfirmado = icone("#e74c3c", "🚨");
-  const icPendente   = icone("#999999", "⏳");
-  const icMulher     = icone("#8B5E9E", "🚺");
-  const icSOS        = icone("#C2185B", "🆘");
+}
 
-  // ── Camadas separadas ─────────────────────────────────────
-  const camadaGeral  = L.layerGroup().addTo(mapa);
-  const camadaMulher = L.layerGroup().addTo(mapa);
+async function carregarTudo() {
+  await Promise.all([loadG(), loadM()]);
+  atualizarDados();
+  atualizarAgora();
+  if (document.getElementById('chk-h').checked) buildHeat(dadosG);
+}
 
-  // ── Carrega alertas gerais ────────────────────────────────
-  async function carregarGeral() {
-    try {
-      const dados = await (await fetch(FB + "/alertas.json")).json();
-      camadaGeral.clearLayers();
-      if (!dados) return;
-
-      Object.values(dados).forEach(a => {
-        if (!a.lat || !a.lng) return;
-
-        // Se tipo for mulher, usa ícone roxo mesmo estando no nó geral
-        let ic;
-        if (a.tipo === "mulher") {
-          ic = (a.descricao || "").toLowerCase().includes("ajuda") ? icSOS : icMulher;
-        } else {
-          ic = a.status === "confirmado" ? icConfirmado : icPendente;
-        }
-
-        const popup = `
-          <b>${a.tipo === "mulher" ? "🚺" : "🚨"} ${a.descricao || "Alerta"}</b><br>
-          🕐 ${a.hora || ""} · ${a.data || ""}<br>
-          ${a.tipo === "mulher"
-            ? "<i style='color:#8B5E9E'>Relato anônimo — Espaço Seguro</i>"
-            : `✅ ${a.confirmacoes || 0} confirmação(ões) · <span style='color:${a.status === "confirmado" ? "#e74c3c" : "#999"}'>${a.status || "pendente"}</span>`
-          }
-        `;
-
-        L.marker([a.lat, a.lng], { icon: ic })
-          .bindPopup(popup)
-          .addTo(camadaGeral);
-      });
-
-      atualizarContador();
-    } catch(e) {
-      console.error("Erro ao carregar alertas gerais:", e);
+async function loadG() {
+  try {
+    const d = await (await fetch(FB+'/alertas.json')).json();
+    if (!d) { si('lista-g', vazio('Nenhum alerta registrado.')); si('bs-lista-g', vazio('Nenhum alerta.')); return; }
+    const arr = Object.entries(d).map(([k,v])=>({id:k,...v})).reverse();
+    if (ultimoG && arr[0]?.id !== ultimoG) {
+      toast('lilas', `🚨 ${arr[0].descricao||'Novo alerta'}`, arr[0].local||'');
+      vizNotif(arr[0]);
+      setTimeout(()=>pulsarMarcador(arr[0].id), 300);
     }
-  }
+    ultimoG = arr[0]?.id;
+    dadosG = arr;
+    si('cnt-g', arr.length); si('bs-cnt-g', arr.length);
+    const fil = filtrar(arr);
+    si('lista-g',    fil.length ? fil.slice(0,12).map(a=>cardG(a)).join('') : vazio('Nenhum alerta neste horário.'));
+    si('bs-lista-g', fil.length ? fil.slice(0,10).map(a=>cardG(a)).join('') : vazio('Nenhum alerta neste horário.'));
+    renderMarcG(arr);
+    geocodeAlerts(dadosG).catch(()=>{});
+  } catch { si('lista-g', vazio('Erro ao carregar.')); }
+}
 
-  // ── Carrega relatos femininos ─────────────────────────────
-  async function carregarMulheres() {
+async function loadM() {
+  try {
+    const d = await (await fetch(FB+'/alertas_mulheres.json')).json();
+    if (!d) { si('lista-m', vazio('Nenhum relato.')); si('bs-lista-m', vazio('Nenhum relato.')); return; }
+    const arr = Object.entries(d).map(([k,v])=>({id:k,...v})).reverse();
+    if (ultimoM && arr[0]?.id !== ultimoM) toast('lilas','🚺 Novo relato Espaço Seguro','');
+    ultimoM = arr[0]?.id;
+    dadosM = arr;
+    si('cnt-m', arr.length); si('bs-cnt-m', arr.length);
+    const fil = filtrar(arr);
+    si('lista-m',    fil.length ? fil.slice(0,12).map(a=>cardM(a)).join('') : vazio('Nenhum relato neste horário.'));
+    si('bs-lista-m', fil.length ? fil.slice(0,10).map(a=>cardM(a)).join('') : vazio('Nenhum relato neste horário.'));
+    renderMarcM(arr);
+    geocodeAlerts(dadosM).catch(()=>{});
+  } catch { si('lista-m', vazio('Erro ao carregar.')); }
+}
+
+/* ── MARCADORES COM TAMANHO PROPORCIONAL ── */
+function contarPerto(lat, lng, arr) {
+  return arr.filter(a => a.lat && a.lng && Math.abs(a.lat-lat)<.0015 && Math.abs(a.lng-lng)<.0015).length;
+}
+
+function renderMarcG(arr) {
+  layG.clearLayers();
+  arr.forEach(a => {
+    if (!a.lat || !a.lng) return;
+    const cnt = contarPerto(a.lat, a.lng, arr);
+    const sz  = 28 + Math.min(cnt * 4, 18);
+    const cor = a.status==='confirmado' ? '#e74c3c' : '#aaaaaa';
+    const ico = a.status==='confirmado' ? '🚨' : '⏳';
+    const mk  = L.marker([a.lat, a.lng], { icon: mkIcon(cor, ico, sz) });
+    mk.on('click', () => aoClicarMarcador(a));
+    mk.addTo(layG);
+    marcadores[a.id] = mk;
+  });
+}
+
+function renderMarcM(arr) {
+  layM.clearLayers();
+  arr.forEach(a => {
+    if (!a.lat || !a.lng) return;
+    const sos = (a.categoria||'').toLowerCase().includes('ajuda');
+    const mk  = L.marker([a.lat, a.lng], { icon: mkIcon(sos?'#C2185B':'#8B5E9E', sos?'🆘':'🚺', 30) });
+    mk.on('click', () => aoClicarMarcador(a));
+    mk.addTo(layM);
+    marcadores[a.id] = mk;
+  });
+}
+
+function pulsarMarcador(id) {
+  const mk = marcadores[id];
+  if (!mk) return;
+  const el = mk.getElement();
+  if (!el) return;
+  el.classList.add('mk-novo');
+  el.querySelector('div').style.animation = 'mkpulse .7s ease forwards';
+  setTimeout(() => {
+    el.classList.remove('mk-novo');
+    const d = el.querySelector('div');
+    if (d) d.style.animation = '';
+  }, 3500);
+}
+
+/* ── CLICK NO MARCADOR → ABRE PAINEL ── */
+function aoClicarMarcador(alerta) {
+  const local = displayLocal(alerta);
+  const quando = tempoAtras(alerta.data, alerta.hora);
+  const count  = [...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geodist(a.lat,a.lng,alerta.lat,alerta.lng)<200).length;
+
+  mapa.flyTo([alerta.lat, alerta.lng], 16, { duration:1 });
+
+  if (isMob()) {
+    const fem = dadosM.some(x=>x.id===alerta.id);
+    const card = fem ? cardM(alerta) : cardG(alerta);
+    const mais = fem
+      ? dadosM.slice(0,5).filter(a=>a.id!==alerta.id).map(cardM).join('')
+      : dadosG.slice(0,5).filter(a=>a.id!==alerta.id).map(cardG).join('');
+    si('bs-lista-g', card + mais);
+    abrirBsheet();
+  } else {
+    // preenche detalhe no painel
+    const sd = document.getElementById('sel-det');
+    sd.classList.add('vis');
+    si('sd-nome', esc(alerta.descricao || alerta.categoria || 'Ocorrência'));
+    document.getElementById('sd-meta').innerHTML = `📍 ${esc(local)}<br>🕐 ${quando} · ${alerta.confirmacoes||0} confirmações`;
+    const sc = document.getElementById('sd-score');
+    if (count <= 1)      { sc.className='sel-score ss-ok';  sc.textContent='✓ Área tranquila'; }
+    else if (count <= 3) { sc.className='sel-score ss-med'; sc.textContent=`⚠ ${count} ocorrências próximas`; }
+    else                 { sc.className='sel-score ss-mal'; sc.textContent=`⚠ ${count} ocorrências — atenção`; }
+    setPtab(document.querySelector('.ptab'), 'pt-feed');
+    abrirGaveta();
+  }
+}
+
+/* ── GAVETA ── */
+let gavetaAb = false;
+let tabAtual = 'feed';
+
+const TABS = {
+  feed:    { titulo:'Últimos alertas',    sib:'sib-feed',     ptab:'pt-feed'     },
+  dados:   { titulo:'Painel da Prefeitura', sib:'sib-dados',  ptab:'pt-dados'    },
+  hist:    { titulo:'Histórico semanal',  sib:'sib-hist',     ptab:'pt-hist'     },
+  chegando:{ titulo:'Segurança',          sib:'sib-chegando', ptab:'pt-chegando' },
+};
+
+function setTab(id) {
+  tabAtual = id;
+  Object.entries(TABS).forEach(([k,v]) => {
+    const pt = document.getElementById(v.ptab); if(pt) pt.style.display = k===id?'block':'none';
+    const sb = document.getElementById(v.sib);  if(sb) sb.classList.toggle('on', k===id);
+  });
+  si('pnl-titulo', TABS[id]?.titulo || '');
+  if (!gavetaAb) abrirGaveta();
+  if (id==='hist') setTimeout(buildHistorico, 60);
+}
+
+function setPtab(btn, ptabId) {
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  ['pt-feed','pt-dados','pt-hist','pt-chegando'].forEach(id => {
+    document.getElementById(id).style.display = id===ptabId?'block':'none';
+  });
+  if (ptabId==='pt-hist') setTimeout(buildHistorico, 60);
+}
+
+function abrirGaveta() {
+  document.getElementById('gaveta').classList.add('ab');
+  document.getElementById('gtoggle').textContent = '▶';
+  gavetaAb = true;
+}
+function fecharGaveta() {
+  document.getElementById('gaveta').classList.remove('ab');
+  document.getElementById('gtoggle').textContent = '◀';
+  document.getElementById('sel-det').classList.remove('vis');
+  gavetaAb = false;
+}
+function toggleGaveta() { gavetaAb ? fecharGaveta() : abrirGaveta(); }
+
+/* ── BOTTOM SHEET ── */
+let bsheetAb = false;
+let bsTouchY  = null;
+
+function abrirBsheet() {
+  const el = document.getElementById('bsheet');
+  el.style.display = 'flex';
+  requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.add('open')); });
+  bsheetAb = true;
+}
+function fecharBsheet() {
+  const el = document.getElementById('bsheet');
+  el.classList.remove('open');
+  setTimeout(() => { el.style.display='none'; }, 360);
+  bsheetAb = false;
+}
+
+function setBstab(btn, id) {
+  document.querySelectorAll('.bstab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  ['bs-feed','bs-dados','bs-hist'].forEach(t => {
+    document.getElementById(t).style.display = t===id?'block':'none';
+  });
+  if (id==='bs-hist') setTimeout(buildHistoricoMob, 50);
+}
+
+// Swipe para fechar
+document.getElementById('bs-hwrap').addEventListener('touchstart', e=>{ bsTouchY=e.touches[0].clientY; });
+document.getElementById('bs-hwrap').addEventListener('touchend', e=>{
+  if (bsTouchY===null) return;
+  if (e.changedTouches[0].clientY - bsTouchY > 55) fecharBsheet();
+  bsTouchY=null;
+});
+// Swipe para abrir no mapa
+document.getElementById('swipe-handle').addEventListener('touchstart', e=>{ bsTouchY=e.touches[0].clientY; });
+document.getElementById('swipe-handle').addEventListener('touchend', e=>{
+  if (bsTouchY===null) return;
+  if (bsTouchY - e.changedTouches[0].clientY > 40) abrirBsheet();
+  bsTouchY=null;
+});
+
+/* ── SLIDER ── */
+function parseH(s) { if(!s) return null; const m=s.match(/(\d{1,2})[:h]/); return m?parseInt(m[1]):null; }
+function getSlider() { return [parseInt(document.getElementById('smin').value), parseInt(document.getElementById('smax').value)]; }
+function filtrar(arr) {
+  const [a,b]=getSlider(); if(a===0&&b===23) return arr;
+  return arr.filter(x=>{const h=parseH(x.hora);return h===null||(h>=a&&h<=b);});
+}
+function atualizarSlider() {
+  let a=parseInt(document.getElementById('smin').value), b=parseInt(document.getElementById('smax').value);
+  const mn=Math.min(a,b), mx=Math.max(a,b);
+  document.getElementById('sfill').style.left=(mn/23*100).toFixed(1)+'%';
+  document.getElementById('sfill').style.width=((mx-mn)/23*100).toFixed(1)+'%';
+  document.getElementById('ftxt').textContent=`${String(mn).padStart(2,'0')}h — ${String(mx).padStart(2,'0')}h`;
+  if (!dadosG.length && !dadosM.length) return;
+  const fg=filtrar(dadosG), fm=filtrar(dadosM);
+  si('lista-g',    fg.length?fg.slice(0,12).map(cardG).join(''):vazio('Nenhum alerta neste horário.'));
+  si('bs-lista-g', fg.length?fg.slice(0,10).map(cardG).join(''):vazio('Nenhum alerta neste horário.'));
+  si('lista-m',    fm.length?fm.slice(0,12).map(cardM).join(''):vazio('Nenhum relato neste horário.'));
+  si('bs-lista-m', fm.length?fm.slice(0,10).map(cardM).join(''):vazio('Nenhum relato neste horário.'));
+  if (layHeat && document.getElementById('chk-h').checked) buildHeat(dadosG);
+}
+document.getElementById('smin').addEventListener('input', atualizarSlider);
+document.getElementById('smax').addEventListener('input', atualizarSlider);
+atualizarSlider();
+
+/* ── RENDER ── */
+function tempoAtras(data, hora) {
+  try {
+    const agora=new Date(), [d,m,y]=(data||'').split('/').map(Number), [h,mi]=(hora||'00:00').split(':').map(Number);
+    const dt=new Date(y||agora.getFullYear(),(m||1)-1,d||agora.getDate(),h||0,mi||0);
+    const diff=Math.round((agora-dt)/60000);
+    if(diff<1)return'agora';if(diff<60)return`há ${diff}min`;if(diff<1440)return`há ${Math.round(diff/60)}h`;return`há ${Math.round(diff/1440)}d`;
+  } catch{return hora||'';}
+}
+function esc(s){return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));}
+function vazio(msg){return`<div class="empty"><span class="empty-ic">📭</span>${msg}</div>`;}
+function si(id, html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
+
+function isFemReport(a){
+  if((a.tipo||'').toLowerCase()==='mulher') return true;
+  const d=(a.descricao||a.categoria||'').toLowerCase();
+  return['assédio','assedio','importunaç','importunac','ameaç','ameac','perseguiç','perseguic'].some(k=>d.includes(k));
+}
+
+function cardG(a) {
+  const ok=a.status==='confirmado', sos=(a.categoria||'').toLowerCase().includes('ajuda');
+  const cls=sos?'b-sos':ok?'b-ok':'b-pend';
+  const lbl=sos?'🆘 SOS':ok?`✓ ${a.confirmacoes||0} conf.`:'pendente';
+  const local=displayLocal(a);
+  const wpp=encodeURIComponent(`🚨 Alerta em ${local}: ${a.descricao||''} (${tempoAtras(a.data,a.hora)}) — Rede Segura São Sebastião`);
+  const btnConf=isFemReport(a)?'':`<button class="acbtn" onclick="event.stopPropagation();confirmar('${a.id}')">👍 Confirmar</button>`;
+  return `<div class="acard" onclick="aoClicarCard(${JSON.stringify(a)})">
+    <div class="atop"><div class="adesc">${esc(a.descricao||'Ocorrência')}</div><span class="abadge ${cls}">${lbl}</span></div>
+    <div class="aloc" data-lid="${a.id}">📍 ${esc(local)} <span style="opacity:.5;margin-left:3px">· ${tempoAtras(a.data,a.hora)}</span></div>
+    <div class="aacoes">
+      ${btnConf}
+      <a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank" onclick="event.stopPropagation()">📲 WhatsApp</a>
+    </div>
+  </div>`;
+}
+
+function cardM(a) {
+  const sos=(a.categoria||'').toLowerCase().includes('ajuda');
+  const local=displayLocal(a);
+  const wpp=encodeURIComponent(`🚺 Relato em ${local}: ${a.categoria||''} (${tempoAtras(a.data,a.hora)}) — Rede Segura São Sebastião`);
+  return `<div class="acard" onclick="aoClicarCard(${JSON.stringify(a)})">
+    <div class="atop"><div class="adesc">${esc(a.categoria||'Relato anônimo')}</div><span class="abadge ${sos?'b-sos':'b-anon'}">${sos?'🆘 SOS':'anônimo'}</span></div>
+    <div class="aloc" data-lid="${a.id}">📍 ${esc(local)} <span style="opacity:.5;margin-left:3px">· ${tempoAtras(a.data,a.hora)}</span></div>
+    <div class="aacoes"><a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank">📲 Compartilhar</a></div>
+  </div>`;
+}
+
+function aoClicarCard(a) {
+  if (a.lat && a.lng) { mapa.flyTo([a.lat,a.lng],16,{duration:1}); if(isMob()) fecharBsheet(); }
+}
+
+/* ── CONTADOR "AGORA" ── */
+function atualizarAgora() {
+  const agora = new Date();
+  const n = [...dadosG,...dadosM].filter(a=>{
     try {
-      const dados = await (await fetch(FB + "/alertas_mulheres.json")).json();
-      camadaMulher.clearLayers();
-      if (!dados) return;
+      const [d,m,y]=(a.data||'').split('/').map(Number), [h,mi]=(a.hora||'00:00').split(':').map(Number);
+      return (agora-new Date(y||agora.getFullYear(),(m||1)-1,d||agora.getDate(),h||0,mi||0))<7200000;
+    } catch{return false;}
+  }).length;
+  si('agora-n', n); si('agora-n-mob', n);
+  const sc=document.getElementById('strip-cnt');
+  if(sc){sc.textContent=n;sc.classList.toggle('vis',n>0);}
+  document.getElementById('nav-agora').innerHTML = n>0
+    ? `<strong>${n}</strong> alerta${n>1?'s':''} nas últimas 2h` : '';
+}
 
-      Object.values(dados).forEach(a => {
-        if (!a.lat || !a.lng) return;
+/* ── CONFIRMAR ── */
+async function confirmar(id) {
+  try {
+    const n=(await(await fetch(`${FB}/alertas/${id}/confirmacoes.json`)).json())||0;
+    await fetch(`${FB}/alertas/${id}/confirmacoes.json`,{method:'PUT',body:JSON.stringify(n+1),headers:{'Content-Type':'application/json'}});
+    if(n+1>=2) await fetch(`${FB}/alertas/${id}/status.json`,{method:'PUT',body:JSON.stringify('confirmado'),headers:{'Content-Type':'application/json'}});
+    toast('verde','Confirmação enviada!','Obrigada por ajudar a comunidade.');
+    setTimeout(loadG,600);
+  } catch{toast('verm','Erro ao confirmar','');}
+}
 
-        const isSOS = (a.categoria || a.descricao || "").toLowerCase().includes("ajuda");
-        const ic    = isSOS ? icSOS : icMulher;
-
-        const popup = `
-          <b>🚺 ${a.categoria || a.descricao || "Relato"}</b><br>
-          🕐 ${a.hora || ""} · ${a.data || ""}<br>
-          <i style="color:#8B5E9E">Relato anônimo — Espaço Seguro</i>
-        `;
-
-        L.marker([a.lat, a.lng], { icon: ic })
-          .bindPopup(popup)
-          .addTo(camadaMulher);
-      });
-
-      atualizarContador();
-    } catch(e) {
-      console.error("Erro ao carregar relatos femininos:", e);
-    }
-  }
-
-  // ── Atualiza contador ─────────────────────────────────────
-  function atualizarContador() {
-    const total = camadaGeral.getLayers().length + camadaMulher.getLayers().length;
-    document.getElementById("total").textContent = total;
-  }
-
-  // ── Filtros ───────────────────────────────────────────────
-  document.getElementById("chk-geral").addEventListener("change", e => {
-    e.target.checked ? mapa.addLayer(camadaGeral) : mapa.removeLayer(camadaGeral);
+/* ── DADOS PREFEITURA ── */
+function atualizarDados() {
+  const agora=new Date();
+  const sem=[...dadosG,...dadosM].filter(a=>{
+    try{const [d,m,y]=(a.data||'').split('/').map(Number);return(agora-new Date(y||agora.getFullYear(),(m||1)-1,d||1))<7*864e5;}catch{return true;}
   });
-  document.getElementById("chk-mulher").addEventListener("change", e => {
-    e.target.checked ? mapa.addLayer(camadaMulher) : mapa.removeLayer(camadaMulher);
-  });
+  const sos=[...dadosG,...dadosM].filter(a=>(a.categoria||'').toLowerCase().includes('ajuda')).length;
+  const conf=dadosG.filter(a=>a.status==='confirmado').length;
+  ['d-tot','bs-d-tot'].forEach(id=>si(id,sem.length));
+  ['d-sos','bs-d-sos'].forEach(id=>si(id,sos));
+  ['d-conf','bs-d-conf'].forEach(id=>si(id,conf));
+  ['d-mul','bs-d-mul'].forEach(id=>si(id,dadosM.length));
+  const cats={};
+  [...dadosG,...dadosM].forEach(a=>{const c=a.categoria||a.tipo||'Geral';cats[c]=(cats[c]||0)+1;});
+  const tot=Math.max(Object.values(cats).reduce((a,b)=>a+b,0),1);
+  si('tbody-cat',Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,8)
+    .map(([c,n])=>`<tr><td>${esc(c)}<div class="bwrap"><div class="bfill" style="width:${(n/tot*100).toFixed(0)}%"></div></div></td><td style="text-align:right;font-weight:500">${n}</td></tr>`).join(''));
+}
 
-  // ── Carrega e atualiza a cada 30 segundos ─────────────────
-  carregarGeral();
-  carregarMulheres();
-  setInterval(carregarGeral,    30000);
-  setInterval(carregarMulheres, 30000);
+function exportCSV() {
+  const rows=[['tipo','descricao','categoria','local','data','hora','lat','lng','status','confirmacoes']];
+  dadosG.forEach(a=>rows.push(['geral',a.descricao||'','',a.local||'',a.data||'',a.hora||'',a.lat||'',a.lng||'',a.status||'',a.confirmacoes||0]));
+  dadosM.forEach(a=>rows.push(['espaco_seguro','',a.categoria||'',a.local||'',a.data||'',a.hora||'',a.lat||'',a.lng||'','','']));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));a.download='relatorio.csv';a.click();
+}
+
+/* ── HISTÓRICO ── */
+function buildHistorico()    { _buildChart('c-sem','box-sem','c-pico','box-pico'); }
+function buildHistoricoMob() { _buildChart('bs-c-sem','bs-box-sem',null,null); }
+
+function _buildChart(semId, semBoxId, picoId, picoBoxId) {
+  const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'], agora=new Date();
+  const labels=[], vals=[], valsM=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(agora); d.setDate(d.getDate()-i);
+    labels.push(dias[d.getDay()]);
+    const s=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    vals.push(dadosG.filter(a=>a.data===s).length);
+    valsM.push(dadosM.filter(a=>a.data===s).length);
+  }
+  drawBars(semId, semBoxId, labels, [vals,valsM], ['#8B5E9E','#C97B8A']);
+  if (picoId) {
+    const horas=Array(24).fill(0);
+    [...dadosG,...dadosM].forEach(a=>{const h=parseH(a.hora);if(h!==null)horas[h]++;});
+    drawBars(picoId, picoBoxId, Array.from({length:24},(_,i)=>i%6===0?`${i}h`:''), [horas], ['#C97B8A']);
+  }
+}
+
+function drawBars(cid, boxId, labels, datasets, cores) {
+  const cv=document.getElementById(cid), box=document.getElementById(boxId);
+  if(!cv||!box) return;
+  const W=Math.max(box.clientWidth-24,80); cv.width=W;
+  const H=cv.height, ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const mx=Math.max(...datasets.flat(),1), n=labels.length, ds=datasets.length;
+  const slot=W/n, barW=Math.min(Math.floor(slot/(ds+1)),22), bot=H-16;
+  datasets.forEach((data,di)=>{
+    data.forEach((v,i)=>{
+      if(!v) return;
+      const bH=Math.round((v/mx)*(bot-4));
+      const x=i*slot+(slot-barW*ds-3*(ds-1))/2+di*(barW+3);
+      ctx.fillStyle=cores[di]+(v===Math.max(...data)?'ff':'88');
+      rRect(ctx,x,bot-bH,barW,bH,3);ctx.fill();
+      if(bH>12){ctx.fillStyle='#fff';ctx.font='bold 8px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillText(v,x+barW/2,bot-bH+10);}
+    });
+  });
+  ctx.fillStyle='#6B6560';ctx.font='9px DM Sans,sans-serif';ctx.textAlign='center';
+  labels.forEach((l,i)=>{if(l)ctx.fillText(l,i*slot+slot/2,H-2);});
+}
+function rRect(ctx,x,y,w,h,r){
+  if(h<=0)return;ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+/* ── ESTOU CHEGANDO ── */
+let chegAtivo=false, watchId=null;
+function togChegando(){chegAtivo?pararCheg():iniciarCheg();}
+async function iniciarCheg(){
+  if(!navigator.geolocation){toast('verm','Geolocalização indisponível','');return;}
+  if(Notification.permission==='default') await Notification.requestPermission();
+  chegAtivo=true;
+  document.getElementById('btn-ch').textContent='Parar monitoramento';
+  document.getElementById('btn-ch').classList.add('verde');
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const{latitude:lat,longitude:lng}=pos.coords;
+    if(chegCircle) chegCircle.setLatLng([lat,lng]);
+    else chegCircle=L.circle([lat,lng],{radius:500,color:'#8B5E9E',fillColor:'#8B5E9E',fillOpacity:.07,weight:1.5,dashArray:'5 4'}).addTo(mapa);
+    mapa.setView([lat,lng],15);
+    const prox=[...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geodist(lat,lng,a.lat,a.lng)<=500);
+    const dot=document.getElementById('cdot');
+    if(prox.length){
+      dot.className='cdot alerta';
+      si('ctxt',`⚠️ ${prox.length} alerta(s) próximo(s)!`);
+      const cb=document.getElementById('cbox');cb.className='cbox vis';
+      cb.innerHTML=prox.slice(0,3).map(a=>`• ${esc(a.descricao||a.categoria||'Ocorrência')} (${Math.round(geodist(lat,lng,a.lat,a.lng))}m)`).join('<br>');
+    }else{dot.className='cdot ok';si('ctxt','Caminho livre');document.getElementById('cbox').className='cbox';}
+  },err=>{toast('verm','Erro de localização',err.message);pararCheg();},{enableHighAccuracy:true,maximumAge:8000});
+}
+function pararCheg(){
+  chegAtivo=false;if(watchId){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  if(chegCircle){mapa.removeLayer(chegCircle);chegCircle=null;}
+  document.getElementById('btn-ch').textContent='Ativar monitoramento';
+  document.getElementById('btn-ch').classList.remove('verde');
+  document.getElementById('cdot').className='cdot';si('ctxt','Monitoramento inativo');
+  document.getElementById('cbox').className='cbox';
+}
+
+/* ── ROTA A→B ── */
+async function calcRota(){
+  const pA=document.getElementById('rota-a').value.trim(), pB=document.getElementById('rota-b').value.trim();
+  if(!pA||!pB){toast('verm','Preencha os dois campos','');return;}
+  const se=document.getElementById('rota-score');se.className='rota-score vis';
+  si('rscore-v','...');si('rscore-l','verificando...');
+  document.getElementById('rscore-v').style.color='var(--cinza)';
+  try{
+    const[cA,cB]=await Promise.all([geocode(pA),geocode(pB)]);
+    if(!cA||!cB){toast('verm','Endereço não encontrado','');se.className='rota-score';return;}
+    if(rotaLay) mapa.removeLayer(rotaLay);
+    rotaLay=L.polyline([cA,cB],{color:'#8B5E9E',weight:3,dashArray:'8 5',opacity:.75}).addTo(mapa);
+    mapa.fitBounds(rotaLay.getBounds(),{padding:[40,40]});
+    const perto=[...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geoSeg(a.lat,a.lng,cA[0],cA[1],cB[0],cB[1])<200).length;
+    let score,cor,lbl;
+    if(!perto){score=10;cor='#4A7C6F';lbl='Caminho seguro';}
+    else if(perto<=2){score=7;cor='#8B5E9E';lbl=`Atenção — ${perto} alerta(s)`;}
+    else if(perto<=5){score=4;cor='#C97B8A';lbl=`Cuidado — ${perto} alertas`;}
+    else{score=2;cor='#C62828';lbl=`Evite — ${perto} alertas`;}
+    document.getElementById('rscore-v').textContent=`${score}/10`;
+    document.getElementById('rscore-v').style.color=cor;
+    si('rscore-l',lbl+' · '+(geodist(cA[0],cA[1],cB[0],cB[1])/1000).toFixed(1)+'km');
+    se.style.cssText=`display:block;border-radius:9px;padding:10px;text-align:center;margin-top:7px;background:${cor}18;border:1px solid ${cor}33;animation:entrar .2s ease;`;
+  }catch{toast('verm','Erro ao calcular','');}
+}
+async function geocode(txt){
+  const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(txt+', São Sebastião, SP, Brasil')}&format=json&limit=1`);
+  const d=await r.json();return d.length?[parseFloat(d[0].lat),parseFloat(d[0].lon)]:null;
+}
+function geoSeg(pLat,pLon,aLat,aLon,bLat,bLon){
+  const dx=bLon-aLon,dy=bLat-aLat;if(!dx&&!dy)return geodist(pLat,pLon,aLat,aLon);
+  const t=Math.max(0,Math.min(1,((pLon-aLon)*dx+(pLat-aLat)*dy)/(dx*dx+dy*dy)));
+  return geodist(pLat,pLon,aLat+t*dy,aLon+t*dx);
+}
+
+/* ── GEO ── */
+function geodist(a,b,c,d){
+  const R=6371e3,dL=(c-a)*Math.PI/180,dO=(d-b)*Math.PI/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dO/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+/* ── ACCORDEÃO ── */
+function togW(id){const c=document.getElementById('w-'+id),h=c.previousElementSibling,ab=c.classList.toggle('ab');h.classList.toggle('ab',ab);}
+
+/* ── TOAST ── */
+function toast(tipo,titulo,detalhe,dur=5000){
+  const c=document.getElementById('toasts'),el=document.createElement('div');
+  el.className=`toast ${tipo}`;
+  el.innerHTML=`<p><strong>${titulo}</strong>${detalhe?`<br><span style="opacity:.65;font-size:.72rem">${detalhe}</span>`:''}</p><button class="tx" onclick="this.parentElement.remove()">×</button>`;
+  c.appendChild(el);setTimeout(()=>el.remove(),dur);
+}
+
+/* ── VIZINHANÇA ── */
+function vizNotif(alerta){
+  const b=document.getElementById('viz-banner');
+  si('viz-txt',`🚨 ${esc(alerta.descricao||'Novo alerta')} · ${esc(alerta.local||'')}`);
+  b.classList.add('vis');setTimeout(()=>b.classList.remove('vis'),8000);
+  if(Notification.permission==='granted')
+    new Notification('🚨 Rede Segura — São Sebastião',{body:`${alerta.descricao||'Nova ocorrência'}\n📍 ${alerta.local||''}`});
+}
+
+/* ── INIT ── */
+carregarTudo();
+setInterval(carregarTudo, 30000);
+new ResizeObserver(()=>{
+  if(document.getElementById('pt-hist').style.display!=='none') buildHistorico();
+  if(document.getElementById('bs-hist')?.style.display!=='none') buildHistoricoMob();
+}).observe(document.querySelector('.g-panel'));
 </script>
 </body>
 </html>
