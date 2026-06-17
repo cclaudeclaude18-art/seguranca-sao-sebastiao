@@ -648,8 +648,7 @@ canvas{display:block;width:100%}
   </div><!-- /gaveta -->
 </div><!-- /stage -->
 
-<!-- SOS / REGISTRAR (desktop) -->
-<a href="https://t.me/Redesegurasaosebastiao_bot?start=sos" target="_blank" class="sos-fab"><span>🆘</span><span>SOS</span></a>
+<!-- REGISTRAR (desktop) -->
 <a href="https://t.me/Redesegurasaosebastiao_bot" target="_blank" class="reg-fab">
   <span>💜 Registrar relato</span>
   <span class="reg-sub">anônimo e seguro</span>
@@ -1047,6 +1046,7 @@ function tempoAtras(data, hora) {
   } catch{return hora||'';}
 }
 function esc(s){return String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));}
+function safeJson(o){return JSON.stringify(o).replace(/</g,'\\u003c').replace(/>/g,'\\u003e');}
 function vazio(msg){return`<div class="empty"><span class="empty-ic">📭</span>${msg}</div>`;}
 function si(id, html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
 
@@ -1062,8 +1062,9 @@ function cardG(a) {
   const lbl=sos?'🆘 SOS':ok?`✓ ${a.confirmacoes||0} conf.`:'pendente';
   const local=displayLocal(a);
   const wpp=encodeURIComponent(`🚨 Alerta em ${local}: ${a.descricao||''} (${tempoAtras(a.data,a.hora)}) — Escudo Violeta São Sebastião`);
-  const btnConf=isFemReport(a)?'':`<button class="acbtn" onclick="event.stopPropagation();confirmar('${a.id}')">👍 Confirmar</button>`;
-  return `<div class="acard" onclick="aoClicarCard(${JSON.stringify(a)})">
+  const jaVotou=!!localStorage.getItem('ev_'+a.id);
+  const btnConf=isFemReport(a)||jaVotou?'':`<button class="acbtn" onclick="event.stopPropagation();confirmar('${a.id}')">👍 Confirmar</button>`;
+  return `<div class="acard" onclick="aoClicarCard(${safeJson(a)})">
     <div class="atop"><div class="adesc">${esc(a.descricao||'Ocorrência')}</div><span class="abadge ${cls}">${lbl}</span></div>
     <div class="aloc" data-lid="${a.id}">📍 ${esc(local)} <span style="opacity:.5;margin-left:3px">· ${tempoAtras(a.data,a.hora)}</span></div>
     <div class="aacoes">
@@ -1077,7 +1078,7 @@ function cardM(a) {
   const sos=(a.categoria||'').toLowerCase().includes('ajuda');
   const local=displayLocal(a);
   const wpp=encodeURIComponent(`🚺 Relato em ${local}: ${a.categoria||''} (${tempoAtras(a.data,a.hora)}) — Escudo Violeta São Sebastião`);
-  return `<div class="acard" onclick="aoClicarCard(${JSON.stringify(a)})">
+  return `<div class="acard" onclick="aoClicarCard(${safeJson(a)})">
     <div class="atop"><div class="adesc">${esc(a.categoria||'Relato anônimo')}</div><span class="abadge ${sos?'b-sos':'b-anon'}">${sos?'🆘 SOS':'anônimo'}</span></div>
     <div class="aloc" data-lid="${a.id}">📍 ${esc(local)} <span style="opacity:.5;margin-left:3px">· ${tempoAtras(a.data,a.hora)}</span></div>
     <div class="aacoes"><a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank">📲 Compartilhar</a></div>
@@ -1106,10 +1107,15 @@ function atualizarAgora() {
 
 /* ── CONFIRMAR ── */
 async function confirmar(id) {
+  if (localStorage.getItem('ev_'+id)) {
+    toast('lilas','Já confirmado','Você já votou neste alerta.');
+    return;
+  }
   try {
     const n=(await(await fetch(`${FB}/alertas/${id}/confirmacoes.json`)).json())||0;
     await fetch(`${FB}/alertas/${id}/confirmacoes.json`,{method:'PUT',body:JSON.stringify(n+1),headers:{'Content-Type':'application/json'}});
     if(n+1>=2) await fetch(`${FB}/alertas/${id}/status.json`,{method:'PUT',body:JSON.stringify('confirmado'),headers:{'Content-Type':'application/json'}});
+    localStorage.setItem('ev_'+id,'1');
     toast('verde','Confirmação enviada!','Obrigada por ajudar a comunidade.');
     setTimeout(loadG,600);
   } catch{toast('verm','Erro ao confirmar','');}
