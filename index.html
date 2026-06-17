@@ -39,6 +39,8 @@ a{text-decoration:none}
 @keyframes entrar   {from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn  {from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes mkpulse  {0%,100%{transform:scale(1) rotate(-45deg)}35%{transform:scale(1.55) rotate(-45deg)}70%{transform:scale(.88) rotate(-45deg)}}
+@keyframes sos-pulse{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,.7),0 3px 10px rgba(0,0,0,.35)}60%{box-shadow:0 0 0 12px rgba(198,40,40,0),0 3px 10px rgba(0,0,0,.35)}}
+.mk-sos>div{animation:sos-pulse 1.6s ease-out infinite !important}
 
 /* ═══ NAV ═══ */
 nav {
@@ -522,6 +524,7 @@ canvas{display:block;width:100%}
       <label class="cam-lbl"><input type="checkbox" id="chk-g" checked onchange="camada('geral')"><span class="cam-dot" style="background:#e74c3c"></span>Alertas</label>
       <label class="cam-lbl"><input type="checkbox" id="chk-m" checked onchange="camada('mulheres')"><span class="cam-dot" style="background:#8B5E9E"></span>Espaço Seguro</label>
       <label class="cam-lbl"><input type="checkbox" id="chk-h" onchange="camada('heat')"><span class="cam-dot" style="background:linear-gradient(90deg,#4CAF50,#F44336)"></span>Calor</label>
+      <div class="cam-lbl" style="cursor:default"><span class="cam-dot" style="background:#C62828;box-shadow:0 0 0 2px rgba(198,40,40,.28)"></span>🔴 SOS — Emergência</div>
     </div>
   </div>
 
@@ -749,6 +752,19 @@ const mapa = L.map('mapa', { zoomControl:false }).setView(CENTRO, 14);
 L.control.zoom({ position:'bottomleft' }).addTo(mapa);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(mapa);
 
+function isSOS(a) {
+  return (a.tipo||'').toLowerCase()==='sos' ||
+         (a.categoria||'').toLowerCase().includes('ajuda') ||
+         (a.categoria||'').toLowerCase().includes('sos');
+}
+
+function mkIconSOS() {
+  return L.divIcon({
+    html:`<div style="background:#C62828;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;"><span style="font-size:20px;line-height:1">🆘</span></div>`,
+    className:'mk-icon mk-sos', iconSize:[46,46], iconAnchor:[23,23]
+  });
+}
+
 function mkIcon(cor, emoji, sz) {
   sz = sz || 30;
   return L.divIcon({
@@ -759,6 +775,9 @@ function mkIcon(cor, emoji, sz) {
 
 const layG = L.layerGroup().addTo(mapa);
 const layM = L.layerGroup().addTo(mapa);
+mapa.createPane('pane-sos');
+mapa.getPane('pane-sos').style.zIndex = 650;
+const layerSOS = L.layerGroup().addTo(mapa);
 let layHeat=null, rotaLay=null, layRota=null, chegCircle=null;
 const marcadores = {};
 
@@ -878,7 +897,7 @@ function contarPerto(lat, lng, arr) {
 
 function renderMarcG(arr) {
   layG.clearLayers();
-  arr.forEach(a => {
+  arr.filter(a => !isSOS(a)).forEach(a => {
     if (!a.lat || !a.lng) return;
     const cnt = contarPerto(a.lat, a.lng, arr);
     const sz  = 28 + Math.min(cnt * 4, 18);
@@ -889,16 +908,27 @@ function renderMarcG(arr) {
     mk.addTo(layG);
     marcadores[a.id] = mk;
   });
+  renderMarcSOS();
 }
 
 function renderMarcM(arr) {
   layM.clearLayers();
-  arr.forEach(a => {
+  arr.filter(a => !isSOS(a)).forEach(a => {
     if (!a.lat || !a.lng) return;
-    const sos = (a.categoria||'').toLowerCase().includes('ajuda');
-    const mk  = L.marker([a.lat, a.lng], { icon: mkIcon(sos?'#C2185B':'#8B5E9E', sos?'🆘':'🚺', 30) });
+    const mk = L.marker([a.lat, a.lng], { icon: mkIcon('#8B5E9E', '🚺', 30) });
     mk.on('click', () => aoClicarMarcador(a));
     mk.addTo(layM);
+    marcadores[a.id] = mk;
+  });
+  renderMarcSOS();
+}
+
+function renderMarcSOS() {
+  layerSOS.clearLayers();
+  [...dadosG, ...dadosM].filter(a => a.lat && a.lng && isSOS(a)).forEach(a => {
+    const mk = L.marker([a.lat, a.lng], { icon: mkIconSOS(), pane: 'pane-sos' });
+    mk.on('click', () => aoClicarMarcador(a));
+    mk.addTo(layerSOS);
     marcadores[a.id] = mk;
   });
 }
