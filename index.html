@@ -1019,6 +1019,8 @@ function atualizarSlider() {
   si('bs-lista-g', fg.length?fg.slice(0,10).map(cardG).join(''):vazio('Nenhum alerta neste horário.'));
   si('lista-m',    fm.length?fm.slice(0,12).map(cardM).join(''):vazio('Nenhum relato neste horário.'));
   si('bs-lista-m', fm.length?fm.slice(0,10).map(cardM).join(''):vazio('Nenhum relato neste horário.'));
+  renderMarcG(fg);
+  renderMarcM(fm);
   if (layHeat && document.getElementById('chk-h').checked) buildHeat(dadosG);
 }
 document.getElementById('smin').addEventListener('input', atualizarSlider);
