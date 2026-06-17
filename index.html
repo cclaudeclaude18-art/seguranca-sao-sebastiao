@@ -273,6 +273,9 @@ canvas{display:block;width:100%}
 .pbtn{flex:1;padding:5px 4px;border:1px solid rgba(176,142,192,.3);border-radius:7px;background:transparent;font-size:.66rem;color:rgba(255,255,255,.5);cursor:pointer;transition:all .2s;font-family:inherit}
 .pbtn.on{background:rgba(139,94,158,.75);color:#fff;border-color:transparent}
 .pbtn:hover:not(.on){background:rgba(255,255,255,.08);color:rgba(255,255,255,.75)}
+#bs-seg .pbtn{color:var(--cinza);border-color:var(--borda);background:transparent}
+#bs-seg .pbtn.on{background:var(--lilas);color:#fff;border-color:transparent}
+#bs-seg .pbtn:hover:not(.on){background:var(--lilas-cl);color:var(--lilas)}
 
 .cdot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s}
 .cdot.ok{background:#4CAF50;animation:pulsar 1.5s ease-in-out infinite}
@@ -293,21 +296,8 @@ canvas{display:block;width:100%}
 .btn.branco{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18)}
 .btn.branco:hover{background:rgba(255,255,255,.22)}
 
-/* ═══ SOS (desktop) ═══ */
-.sos-fab{
-  position:fixed;bottom:22px;right:calc(var(--strip) + 18px);z-index:800;
-  width:58px;height:58px;border-radius:50%;border:none;
-  background:linear-gradient(135deg,#5C2D7E,#8B5E9E);color:#fff;
-  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-  animation:sos-p 3s ease-in-out infinite;
-  box-shadow:0 4px 18px rgba(139,94,158,.5);text-decoration:none;transition:transform .2s;
-}
 @keyframes sos-p{0%,100%{box-shadow:0 4px 18px rgba(139,94,158,.55)}50%{box-shadow:0 4px 28px rgba(139,94,158,.9),0 0 0 10px rgba(139,94,158,.15)}}
 @keyframes sos-pd{0%,100%{box-shadow:0 4px 22px rgba(229,57,53,.7)}50%{box-shadow:0 6px 38px rgba(229,57,53,1),0 0 0 15px rgba(229,57,53,.2)}}
-[data-noite] .sos-fab{background:linear-gradient(135deg,#C62828,#E53935);box-shadow:0 4px 22px rgba(198,40,40,.6);animation:sos-pd 2s ease-in-out infinite}
-.sos-fab:hover{transform:scale(1.08)}
-.sos-fab span:first-child{font-size:1.1rem;line-height:1}
-.sos-fab span:last-child{font-size:.57rem;font-weight:700;color:#fff;letter-spacing:.04em}
 
 /* REGISTRAR (desktop) */
 .reg-fab{
@@ -662,7 +652,7 @@ canvas{display:block;width:100%}
   </div>
   <a href="https://t.me/Redesegurasaosebastiao_bot?start=sos" target="_blank" class="bbar-sos"><span>🆘</span><span>SOS</span></a>
   <a href="https://t.me/Redesegurasaosebastiao_bot" target="_blank" class="bbar-reg">💜 Registrar</a>
-  <button class="bbar-modo" onclick="alternarNoite()" id="btn-noite-m">🌙</button>
+  <button class="bbar-modo" onclick="abrirSeg()" title="Segurança no caminho">📍</button>
   <button class="bbar-menu" onclick="bsheetAb?fecharBsheet():abrirBsheet()">☰</button>
 </div>
 
@@ -678,6 +668,7 @@ canvas{display:block;width:100%}
     <button class="bstab on" onclick="setBstab(this,'bs-feed')">Alertas</button>
     <button class="bstab"    onclick="setBstab(this,'bs-dados')">Prefeitura</button>
     <button class="bstab"    onclick="setBstab(this,'bs-hist')">Histórico</button>
+    <button class="bstab" id="bstab-seg" onclick="setBstab(this,'bs-seg')">Segurança</button>
   </div>
   <div class="bs-body">
     <div id="bs-feed">
@@ -696,6 +687,33 @@ canvas{display:block;width:100%}
       <div style="padding:13px">
         <div class="feed-tit">Últimos 7 dias</div>
         <div class="chart-box" id="bs-box-sem"><canvas id="bs-c-sem" height="130"></canvas></div>
+      </div>
+    </div>
+    <div id="bs-seg" style="display:none">
+      <div style="padding:13px 13px 6px">
+        <div class="feed-tit">Estou chegando</div>
+        <div style="display:flex;align-items:center;gap:7px;font-size:.77rem;color:var(--cinza);margin-bottom:8px">
+          <span class="cdot" id="mob-cdot"></span><span id="mob-ctxt">Monitoramento inativo</span>
+        </div>
+        <p style="font-size:.72rem;color:var(--cinza);line-height:1.6;margin-bottom:9px">Avisa se houver alertas em <strong>500m</strong> ao seu redor.</p>
+        <div class="cbox" id="mob-cbox"></div>
+        <button class="btn" id="mob-btn-ch" onclick="togChegando()">Ativar monitoramento</button>
+      </div>
+      <div style="padding:10px 13px 13px;border-top:1px solid var(--borda);margin-top:10px">
+        <div class="feed-tit">Segurança no caminho</div>
+        <input type="text" id="mob-rota-a" placeholder="📍 Origem" style="width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.77rem;color:var(--preto);outline:none;margin-bottom:6px;font-family:inherit;box-sizing:border-box">
+        <input type="text" id="mob-rota-b" placeholder="🏁 Destino" style="width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.77rem;color:var(--preto);outline:none;margin-bottom:6px;font-family:inherit;box-sizing:border-box">
+        <div class="periodo-btns">
+          <button class="pbtn on" data-p="2h"   onclick="setPeriodo(this)">2h</button>
+          <button class="pbtn"    data-p="24h"  onclick="setPeriodo(this)">24h</button>
+          <button class="pbtn"    data-p="7d"   onclick="setPeriodo(this)">7 dias</button>
+          <button class="pbtn"    data-p="tudo" onclick="setPeriodo(this)">Tudo</button>
+        </div>
+        <button class="btn sec" onclick="calcRota()" style="margin-top:8px">Verificar segurança</button>
+        <div class="rota-score" id="mob-rota-score">
+          <div class="rota-num" id="mob-rscore-v">—</div>
+          <div style="font-size:.69rem;opacity:.75;margin-top:3px" id="mob-rscore-l"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -990,10 +1008,14 @@ function fecharBsheet() {
 function setBstab(btn, id) {
   document.querySelectorAll('.bstab').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  ['bs-feed','bs-dados','bs-hist'].forEach(t => {
-    document.getElementById(t).style.display = t===id?'block':'none';
+  ['bs-feed','bs-dados','bs-hist','bs-seg'].forEach(t => {
+    const el=document.getElementById(t); if(el) el.style.display = t===id?'block':'none';
   });
   if (id==='bs-hist') setTimeout(buildHistoricoMob, 50);
+}
+function abrirSeg() {
+  setBstab(document.getElementById('bstab-seg'), 'bs-seg');
+  abrirBsheet();
 }
 
 document.getElementById('bs-hwrap').addEventListener('touchstart', e=>{ bsTouchY=e.touches[0].clientY; });
@@ -1199,39 +1221,50 @@ function rRect(ctx,x,y,w,h,r){
 /* ── ESTOU CHEGANDO ── */
 let chegAtivo=false, watchId=null;
 function togChegando(){chegAtivo?pararCheg():iniciarCheg();}
+function _chBtn(txt, verde) {
+  ['btn-ch','mob-btn-ch'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=txt;el.classList.toggle('verde',verde);}});
+}
+function _chDot(cls) {
+  ['cdot','mob-cdot'].forEach(id=>{const el=document.getElementById(id);if(el)el.className=cls;});
+}
+function _chBox(cls, html) {
+  ['cbox','mob-cbox'].forEach(id=>{const el=document.getElementById(id);if(el){el.className=cls;if(html!==null)el.innerHTML=html||'';}});
+}
 async function iniciarCheg(){
   if(!navigator.geolocation){toast('verm','Geolocalização indisponível','');return;}
   if(Notification.permission==='default') await Notification.requestPermission();
   chegAtivo=true;
-  document.getElementById('btn-ch').textContent='Parar monitoramento';
-  document.getElementById('btn-ch').classList.add('verde');
+  _chBtn('Parar monitoramento', true);
   watchId=navigator.geolocation.watchPosition(pos=>{
     const{latitude:lat,longitude:lng}=pos.coords;
     if(chegCircle) chegCircle.setLatLng([lat,lng]);
     else chegCircle=L.circle([lat,lng],{radius:500,color:'#8B5E9E',fillColor:'#8B5E9E',fillOpacity:.07,weight:1.5,dashArray:'5 4'}).addTo(mapa);
     mapa.setView([lat,lng],15);
     const prox=[...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geodist(lat,lng,a.lat,a.lng)<=500);
-    const dot=document.getElementById('cdot');
     if(prox.length){
-      dot.className='cdot alerta';
-      si('ctxt',`⚠️ ${prox.length} alerta(s) próximo(s)!`);
-      const cb=document.getElementById('cbox');cb.className='cbox vis';
-      cb.innerHTML=prox.slice(0,3).map(a=>`• ${esc(a.descricao||a.categoria||'Ocorrência')} (${Math.round(geodist(lat,lng,a.lat,a.lng))}m)`).join('<br>');
-    }else{dot.className='cdot ok';si('ctxt','Caminho livre');document.getElementById('cbox').className='cbox';}
+      _chDot('cdot alerta');
+      si('ctxt',`⚠️ ${prox.length} alerta(s) próximo(s)!`);si('mob-ctxt',`⚠️ ${prox.length} alerta(s) próximo(s)!`);
+      const html=prox.slice(0,3).map(a=>`• ${esc(a.descricao||a.categoria||'Ocorrência')} (${Math.round(geodist(lat,lng,a.lat,a.lng))}m)`).join('<br>');
+      _chBox('cbox vis', html);
+    }else{
+      _chDot('cdot ok');
+      si('ctxt','Caminho livre');si('mob-ctxt','Caminho livre');
+      _chBox('cbox', null);
+    }
   },err=>{toast('verm','Erro de localização',err.message);pararCheg();},{enableHighAccuracy:true,maximumAge:8000});
 }
 function pararCheg(){
   chegAtivo=false;if(watchId){navigator.geolocation.clearWatch(watchId);watchId=null;}
   if(chegCircle){mapa.removeLayer(chegCircle);chegCircle=null;}
-  document.getElementById('btn-ch').textContent='Ativar monitoramento';
-  document.getElementById('btn-ch').classList.remove('verde');
-  document.getElementById('cdot').className='cdot';si('ctxt','Monitoramento inativo');
-  document.getElementById('cbox').className='cbox';
+  _chBtn('Ativar monitoramento', false);
+  _chDot('cdot');
+  si('ctxt','Monitoramento inativo');si('mob-ctxt','Monitoramento inativo');
+  _chBox('cbox', null);
 }
 
 /* ── ROTA A→B ── */
 function setPeriodo(btn) {
-  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('on'));
+  btn.closest('.periodo-btns').querySelectorAll('.pbtn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
 }
 
@@ -1260,21 +1293,25 @@ function distRotaPts(pLat, pLon, pts) {
 }
 
 async function calcRota() {
-  const pA = document.getElementById('rota-a').value.trim();
-  const pB = document.getElementById('rota-b').value.trim();
+  const mob = isMob();
+  const pA = (mob ? document.getElementById('mob-rota-a') : document.getElementById('rota-a'))?.value.trim() || '';
+  const pB = (mob ? document.getElementById('mob-rota-b') : document.getElementById('rota-b'))?.value.trim() || '';
   if (!pA || !pB) { toast('verm', 'Preencha os dois campos', ''); return; }
 
-  const se = document.getElementById('rota-score');
+  const seId = mob ? 'mob-rota-score' : 'rota-score';
+  const vId  = mob ? 'mob-rscore-v'   : 'rscore-v';
+  const lId  = mob ? 'mob-rscore-l'   : 'rscore-l';
+  const se   = document.getElementById(seId);
   se.className = 'rota-score vis';
-  si('rscore-v', '...');
-  si('rscore-l', 'buscando rota...');
-  document.getElementById('rscore-v').style.color = 'var(--cinza)';
+  si(vId, '...'); si(lId, 'buscando rota...');
+  document.getElementById(vId).style.color = 'var(--cinza)';
+
+  const periodo = document.querySelector(mob ? '#bs-seg .pbtn.on' : '#w-rota .pbtn.on')?.dataset.p || '2h';
 
   try {
     const [cA, cB] = await Promise.all([geocode(pA), geocode(pB)]);
     if (!cA || !cB) { toast('verm', 'Endereço não encontrado', ''); se.className = 'rota-score'; return; }
 
-    // Busca rota real via OSRM; cai em linha reta se falhar
     let rotaPts = [cA, cB];
     try {
       const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${cA[1]},${cA[0]};${cB[1]},${cB[0]}?overview=full&geometries=geojson`;
@@ -1288,37 +1325,26 @@ async function calcRota() {
     rotaLay = L.polyline(rotaPts, { color:'#8B5E9E', weight:4, dashArray:'8 5', opacity:.82 }).addTo(mapa);
     mapa.fitBounds(rotaLay.getBounds(), { padding:[40, 40] });
 
-    // Filtra alertas pelo período selecionado
-    const periodo = document.querySelector('.pbtn.on')?.dataset.p || '2h';
-    const todos   = [...dadosG, ...dadosM];
-    const emTempo = filtrarPorPeriodo(todos, periodo);
+    const emTempo  = filtrarPorPeriodo([...dadosG, ...dadosM], periodo);
+    const noTrajeto = emTempo.filter(a => a.lat && a.lng && distRotaPts(a.lat, a.lng, rotaPts) < 300);
 
-    // Verifica quais alertas estão a menos de 300m da rota
-    const noTrajeto = emTempo.filter(a =>
-      a.lat && a.lng && distRotaPts(a.lat, a.lng, rotaPts) < 300
-    );
-
-    // Destaca marcadores no trajeto com anel laranja
     if (layRota) mapa.removeLayer(layRota);
     layRota = L.layerGroup().addTo(mapa);
     noTrajeto.forEach(a => {
-      L.circleMarker([a.lat, a.lng], {
-        radius: 20, color: '#FF6F00', weight: 2.5,
-        fillColor: '#FF6F00', fillOpacity: 0.15
-      }).addTo(layRota);
+      L.circleMarker([a.lat, a.lng], { radius:20, color:'#FF6F00', weight:2.5, fillColor:'#FF6F00', fillOpacity:.15 }).addTo(layRota);
     });
 
     const n = noTrajeto.length;
     let score, cor;
-    if      (!n)    { score=10; cor='#4A7C6F'; }
-    else if (n<=2)  { score=7;  cor='#8B5E9E'; }
-    else if (n<=5)  { score=4;  cor='#C97B8A'; }
-    else            { score=2;  cor='#C62828'; }
+    if      (!n)   { score=10; cor='#4A7C6F'; }
+    else if (n<=2) { score=7;  cor='#8B5E9E'; }
+    else if (n<=5) { score=4;  cor='#C97B8A'; }
+    else           { score=2;  cor='#C62828'; }
 
-    document.getElementById('rscore-v').textContent = `${score}/10`;
-    document.getElementById('rscore-v').style.color = cor;
+    document.getElementById(vId).textContent = `${score}/10`;
+    document.getElementById(vId).style.color = cor;
     const km = (geodist(cA[0],cA[1],cB[0],cB[1])/1000).toFixed(1);
-    si('rscore-l', `${n} ocorrência${n!==1?'s':''} encontrada${n!==1?'s':''} no trajeto · ${km}km`);
+    si(lId, `${n} ocorrência${n!==1?'s':''} encontrada${n!==1?'s':''} no trajeto · ${km}km`);
     se.style.cssText = `display:block;border-radius:9px;padding:10px;text-align:center;margin-top:7px;background:${cor}18;border:1px solid ${cor}33;animation:entrar .2s ease;`;
 
   } catch { toast('verm', 'Erro ao calcular rota', ''); }
