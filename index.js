@@ -174,9 +174,13 @@ async function notificarCanal(alerta, id) {
       `⚠️ *ATENÇÃO: alguém precisa de ajuda AGORA*\n` +
       `_Localização registrada no mapa — acesse o painel_`;
     payload = {
-      chat_id:    CANAL_ID,
-      text:       texto,
-      parse_mode: "Markdown"
+      chat_id:      CANAL_ID,
+      text:         texto,
+      parse_mode:   "Markdown",
+      reply_markup: { inline_keyboard: [[
+        { text: "📍 Ver no Google Maps",        url: `https://maps.google.com/?q=${alerta.lat},${alerta.lng}` },
+        { text: "🗺️ Ver no mapa Escudo Violeta", url: "https://escudo-violeta.pages.dev" }
+      ]]}
     };
   } else {
     const emoji = alerta.tipo === "mulher" ? "🟣" : "🔴";
