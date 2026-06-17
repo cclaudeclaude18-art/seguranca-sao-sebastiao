@@ -82,6 +82,16 @@ app.post("/webhook", async (req, res) => {
     return;
   }
 
+  if (texto === "/sos" || texto === "/start sos") {
+    cache[chatId] = { desc: "🆘 EMERGÊNCIA — preciso de ajuda", tipo: "sos" };
+    await enviarMensagem(chatId,
+      "🆘 *SOS ATIVADO*\n\n" +
+      "Seu pedido de emergência foi registrado. Envie sua localização agora para notificar a rede imediatamente."
+    );
+    await pedirLocalizacao(chatId, "📍 Onde você está? Envie sua localização:");
+    return;
+  }
+
   if (texto.startsWith("/alerta")) {
     const desc = texto.replace("/alerta", "").trim() || "Situação suspeita";
     cache[chatId] = { desc, tipo: "geral" };
@@ -129,7 +139,7 @@ async function salvarAlerta(chatId, lat, lng) {
     data:         new Date().toLocaleDateString("pt-BR"),
     confirmacoes: 0,
     negacoes:     0,
-    status:       tipo === "mulher" ? "ativo" : "pendente"
+    status:       tipo === "mulher" ? "ativo" : (tipo === "sos" ? "sos" : "pendente")
   };
 
   const no = tipo === "mulher" ? "/alertas_mulheres" : "/alertas";
@@ -147,27 +157,43 @@ async function salvarAlerta(chatId, lat, lng) {
 
   const msg = tipo === "mulher"
     ? "💜 Relato registrado com segurança. Obrigada por contribuir!"
-    : "✅ Alerta registrado! A rede foi notificada.";
+    : tipo === "sos"
+      ? "🆘 SOS registrado! A rede foi alertada. Fique segura — ajuda a caminho."
+      : "✅ Alerta registrado! A rede foi notificada.";
   await enviarMensagem(chatId, msg);
 }
 
 async function notificarCanal(alerta, id) {
-  const emoji = alerta.tipo === "mulher" ? "🟣" : "🔴";
-  const texto = alerta.tipo === "mulher"
-    ? `${emoji} *NOVO RELATO — Espaço Seguro*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\n_Relato anônimo — localização registrada no mapa_`
-    : `${emoji} *NOVO ALERTA*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\nVocê está vendo isso agora?`;
+  let texto, payload;
 
-  const payload = {
-    chat_id:    CANAL_ID,
-    text:       texto,
-    parse_mode: "Markdown"
-  };
-
-  if (alerta.tipo !== "mulher") {
-    payload.reply_markup = { inline_keyboard: [[
-      { text: "✅ Confirmo!",    callback_data: "confirmar_" + id },
-      { text: "❌ Não vi nada", callback_data: "negar_"     + id }
-    ]]};
+  if (alerta.tipo === "sos") {
+    texto =
+      `🆘🆘🆘 *EMERGÊNCIA — SOS ATIVADO* 🆘🆘🆘\n\n` +
+      `📌 ${alerta.descricao}\n` +
+      `🕐 ${alerta.hora}\n\n` +
+      `⚠️ *ATENÇÃO: alguém precisa de ajuda AGORA*\n` +
+      `_Localização registrada no mapa — acesse o painel_`;
+    payload = {
+      chat_id:    CANAL_ID,
+      text:       texto,
+      parse_mode: "Markdown"
+    };
+  } else {
+    const emoji = alerta.tipo === "mulher" ? "🟣" : "🔴";
+    texto = alerta.tipo === "mulher"
+      ? `${emoji} *NOVO RELATO — Espaço Seguro*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\n_Relato anônimo — localização registrada no mapa_`
+      : `${emoji} *NOVO ALERTA*\n\n📌 ${alerta.descricao}\n🕐 ${alerta.hora}\n\nVocê está vendo isso agora?`;
+    payload = {
+      chat_id:    CANAL_ID,
+      text:       texto,
+      parse_mode: "Markdown"
+    };
+    if (alerta.tipo !== "mulher") {
+      payload.reply_markup = { inline_keyboard: [[
+        { text: "✅ Confirmo!",    callback_data: "confirmar_" + id },
+        { text: "❌ Não vi nada", callback_data: "negar_"     + id }
+      ]]};
+    }
   }
 
   await fetch(`${URL_API}/sendMessage`, {
