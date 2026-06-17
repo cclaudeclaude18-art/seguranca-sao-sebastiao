@@ -485,6 +485,14 @@ canvas{display:block;width:100%}
 }
 .tg-btn.fem{background:var(--lilas)}
 .tg-btn:hover{opacity:.88}
+
+/* ═══ AUTOCOMPLETE DESTINO ═══ */
+.ac-wrap{position:relative;margin-bottom:6px}
+.ac-drop{position:absolute;left:0;right:0;top:100%;background:var(--creme);border:1px solid var(--borda);border-radius:8px;z-index:9999;max-height:160px;overflow-y:auto;box-shadow:var(--sombra);font-size:.76rem}
+[data-noite] .ac-drop{background:var(--creme2)}
+.ac-item{padding:8px 10px;cursor:pointer;color:var(--preto);line-height:1.35;border-bottom:1px solid var(--borda)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover{background:var(--lilas-cl);color:var(--lilas)}
 </style>
 </head>
 <body>
@@ -619,8 +627,11 @@ canvas{display:block;width:100%}
               </div>
               <div class="wcorpo" id="w-rota">
                 <p class="rota-txt">Sentiu desconforto num trajeto? <em>Seu relato protege quem vem depois.</em></p>
-                <input type="text" class="rota-in" id="rota-a" placeholder="📍 Origem">
-                <input type="text" class="rota-in" id="rota-b" placeholder="🏁 Destino">
+                <input type="text" class="rota-in" id="rota-a" placeholder="📍 Origem" onfocus="preencherOrigem('rota-a')" autocomplete="off">
+                <div class="ac-wrap">
+                  <input type="text" class="rota-in" id="rota-b" placeholder="🏁 Destino" oninput="autocompleteDestino(this.value,'rota-b','ac-rota-b')" autocomplete="off" style="width:100%;margin-bottom:0">
+                  <div class="ac-drop" id="ac-rota-b" style="display:none"></div>
+                </div>
                 <div class="periodo-btns">
                   <button class="pbtn on" data-p="2h"   onclick="setPeriodo(this)">2h</button>
                   <button class="pbtn"    data-p="24h"  onclick="setPeriodo(this)">24h</button>
@@ -632,6 +643,7 @@ canvas{display:block;width:100%}
                   <div class="rota-num" id="rscore-v">—</div>
                   <div style="font-size:.69rem;opacity:.75;margin-top:3px" id="rscore-l"></div>
                 </div>
+                <div id="gmaps-btn-wrap" style="display:none;margin-top:7px"></div>
               </div>
             </div>
           </div>
@@ -704,8 +716,11 @@ canvas{display:block;width:100%}
       </div>
       <div style="padding:10px 13px 13px;border-top:1px solid var(--borda);margin-top:10px">
         <div class="feed-tit">Segurança no caminho</div>
-        <input type="text" id="mob-rota-a" placeholder="📍 Origem" style="width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.77rem;color:var(--preto);outline:none;margin-bottom:6px;font-family:inherit;box-sizing:border-box">
-        <input type="text" id="mob-rota-b" placeholder="🏁 Destino" style="width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.77rem;color:var(--preto);outline:none;margin-bottom:6px;font-family:inherit;box-sizing:border-box">
+        <input type="text" id="mob-rota-a" placeholder="📍 Origem" onfocus="preencherOrigem('mob-rota-a')" autocomplete="off" style="width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.77rem;color:var(--preto);outline:none;margin-bottom:6px;font-family:inherit;box-sizing:border-box">
+        <div class="ac-wrap" style="margin-bottom:6px">
+          <input type="text" id="mob-rota-b" placeholder="🏁 Destino" oninput="autocompleteDestino(this.value,'mob-rota-b','ac-mob-rota-b')" autocomplete="off" style="width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.77rem;color:var(--preto);outline:none;margin-bottom:0;font-family:inherit;box-sizing:border-box">
+          <div class="ac-drop" id="ac-mob-rota-b" style="display:none"></div>
+        </div>
         <div class="periodo-btns">
           <button class="pbtn on" data-p="2h"   onclick="setPeriodo(this)">2h</button>
           <button class="pbtn"    data-p="24h"  onclick="setPeriodo(this)">24h</button>
@@ -717,6 +732,7 @@ canvas{display:block;width:100%}
           <div class="rota-num" id="mob-rscore-v">—</div>
           <div style="font-size:.69rem;opacity:.75;margin-top:3px" id="mob-rscore-l"></div>
         </div>
+        <div id="mob-gmaps-btn-wrap" style="display:none;margin-top:7px"></div>
       </div>
     </div>
   </div>
@@ -779,6 +795,7 @@ mapa.createPane('pane-sos');
 mapa.getPane('pane-sos').style.zIndex = 650;
 const layerSOS = L.layerGroup().addTo(mapa);
 let layHeat=null, rotaLay=null, layRota=null, chegCircle=null;
+let origemLatLng=null, acTimer=null;
 const marcadores = {};
 
 function camada(tipo) {
@@ -1298,6 +1315,57 @@ function setPeriodo(btn) {
   btn.classList.add('on');
 }
 
+function preencherOrigem(inputId) {
+  const el = document.getElementById(inputId);
+  if (!navigator.geolocation) return;
+  if (el.value && el.value !== '📍 Minha localização atual') return;
+  el.value = '⏳ Localizando...';
+  el.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      origemLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      el.value = '📍 Minha localização atual';
+      el.disabled = false;
+      const outro = inputId === 'rota-a' ? 'mob-rota-a' : 'rota-a';
+      const elOutro = document.getElementById(outro);
+      if (elOutro && !elOutro.value) elOutro.value = '📍 Minha localização atual';
+    },
+    () => { el.value = ''; el.disabled = false; },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+
+function autocompleteDestino(val, inputId, listaId) {
+  clearTimeout(acTimer);
+  const lista = document.getElementById(listaId);
+  if (!val || val.length < 3) { lista.style.display = 'none'; return; }
+  acTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ', São Sebastião, DF, Brasil')}&format=json&limit=5`);
+      const d = await r.json();
+      if (!d.length) { lista.style.display = 'none'; return; }
+      lista.innerHTML = d.map(p =>
+        `<div class="ac-item" data-name="${esc(p.display_name)}" onclick="selecionarDestino('${inputId}','${listaId}',this)">${esc(p.display_name)}</div>`
+      ).join('');
+      lista.style.display = 'block';
+    } catch { lista.style.display = 'none'; }
+  }, 400);
+}
+
+function selecionarDestino(inputId, listaId, el) {
+  document.getElementById(inputId).value = el.dataset.name;
+  document.getElementById(listaId).style.display = 'none';
+}
+
+document.addEventListener('click', e => {
+  ['ac-rota-b','ac-mob-rota-b'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.contains(e.target) && e.target.id !== 'rota-b' && e.target.id !== 'mob-rota-b') {
+      el.style.display = 'none';
+    }
+  });
+});
+
 function filtrarPorPeriodo(arr, periodo) {
   const agora = new Date();
   const limites = { '2h': 2*3600e3, '24h': 24*3600e3, '7d': 7*864e5 };
@@ -1328,6 +1396,9 @@ async function calcRota() {
   const pB = (mob ? document.getElementById('mob-rota-b') : document.getElementById('rota-b'))?.value.trim() || '';
   if (!pA || !pB) { toast('verm', 'Preencha os dois campos', ''); return; }
 
+  const wrapId = mob ? 'mob-gmaps-btn-wrap' : 'gmaps-btn-wrap';
+  const wEl    = document.getElementById(wrapId);
+  if (wEl) wEl.style.display = 'none';
   const seId = mob ? 'mob-rota-score' : 'rota-score';
   const vId  = mob ? 'mob-rscore-v'   : 'rscore-v';
   const lId  = mob ? 'mob-rscore-l'   : 'rscore-l';
@@ -1339,7 +1410,11 @@ async function calcRota() {
   const periodo = document.querySelector(mob ? '#bs-seg .pbtn.on' : '#w-rota .pbtn.on')?.dataset.p || '2h';
 
   try {
-    const [cA, cB] = await Promise.all([geocode(pA), geocode(pB)]);
+    const isGPS = !!(origemLatLng && pA === '📍 Minha localização atual');
+    const [cA, cB] = await Promise.all([
+      isGPS ? Promise.resolve([origemLatLng.lat, origemLatLng.lng]) : geocode(pA),
+      geocode(pB)
+    ]);
     if (!cA || !cB) { toast('verm', 'Endereço não encontrado', ''); se.className = 'rota-score'; return; }
 
     let rotaPts = [cA, cB];
@@ -1376,6 +1451,13 @@ async function calcRota() {
     const km = (geodist(cA[0],cA[1],cB[0],cB[1])/1000).toFixed(1);
     si(lId, `${n} ocorrência${n!==1?'s':''} encontrada${n!==1?'s':''} no trajeto · ${km}km`);
     se.style.cssText = `display:block;border-radius:9px;padding:10px;text-align:center;margin-top:7px;background:${cor}18;border:1px solid ${cor}33;animation:entrar .2s ease;`;
+
+    const gmapsOrig = isGPS ? `${origemLatLng.lat},${origemLatLng.lng}` : pA;
+    const gmapsUrl  = `https://www.google.com/maps/dir/${encodeURIComponent(gmapsOrig)}/${encodeURIComponent(pB)}`;
+    if (wEl) {
+      si(wrapId, `<a href="${gmapsUrl}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:9px;background:var(--verde-cl);color:var(--verde);font-size:.74rem;font-weight:500;text-decoration:none;border:1px solid rgba(74,124,111,.25)">🗺️ Abrir rota no Google Maps</a>`);
+      wEl.style.display = 'block';
+    }
 
   } catch { toast('verm', 'Erro ao calcular rota', ''); }
 }
