@@ -269,6 +269,10 @@ canvas{display:block;width:100%}
 .rota-score{border-radius:9px;padding:10px;text-align:center;display:none;margin-top:7px}
 .rota-score.vis{display:block;animation:entrar .2s ease}
 .rota-num{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;line-height:1}
+.periodo-btns{display:flex;gap:4px;margin-bottom:8px}
+.pbtn{flex:1;padding:5px 4px;border:1px solid rgba(176,142,192,.3);border-radius:7px;background:transparent;font-size:.66rem;color:rgba(255,255,255,.5);cursor:pointer;transition:all .2s;font-family:inherit}
+.pbtn.on{background:rgba(139,94,158,.75);color:#fff;border-color:transparent}
+.pbtn:hover:not(.on){background:rgba(255,255,255,.08);color:rgba(255,255,255,.75)}
 
 .cdot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s}
 .cdot.ok{background:#4CAF50;animation:pulsar 1.5s ease-in-out infinite}
@@ -624,6 +628,12 @@ canvas{display:block;width:100%}
                 <p class="rota-txt">Sentiu desconforto num trajeto? <em>Seu relato protege quem vem depois.</em></p>
                 <input type="text" class="rota-in" id="rota-a" placeholder="📍 Origem">
                 <input type="text" class="rota-in" id="rota-b" placeholder="🏁 Destino">
+                <div class="periodo-btns">
+                  <button class="pbtn on" data-p="2h"   onclick="setPeriodo(this)">2h</button>
+                  <button class="pbtn"    data-p="24h"  onclick="setPeriodo(this)">24h</button>
+                  <button class="pbtn"    data-p="7d"   onclick="setPeriodo(this)">7 dias</button>
+                  <button class="pbtn"    data-p="tudo" onclick="setPeriodo(this)">Tudo</button>
+                </div>
                 <button class="btn branco" onclick="calcRota()">Verificar segurança</button>
                 <div class="rota-score" id="rota-score">
                   <div class="rota-num" id="rscore-v">—</div>
@@ -732,7 +742,7 @@ function mkIcon(cor, emoji, sz) {
 
 const layG = L.layerGroup().addTo(mapa);
 const layM = L.layerGroup().addTo(mapa);
-let layHeat=null, rotaLay=null, chegCircle=null;
+let layHeat=null, rotaLay=null, layRota=null, chegCircle=null;
 const marcadores = {};
 
 function camada(tipo) {
@@ -1214,32 +1224,102 @@ function pararCheg(){
 }
 
 /* ── ROTA A→B ── */
-async function calcRota(){
-  const pA=document.getElementById('rota-a').value.trim(), pB=document.getElementById('rota-b').value.trim();
-  if(!pA||!pB){toast('verm','Preencha os dois campos','');return;}
-  const se=document.getElementById('rota-score');se.className='rota-score vis';
-  si('rscore-v','...');si('rscore-l','verificando...');
-  document.getElementById('rscore-v').style.color='var(--cinza)';
-  try{
-    const[cA,cB]=await Promise.all([geocode(pA),geocode(pB)]);
-    if(!cA||!cB){toast('verm','Endereço não encontrado','');se.className='rota-score';return;}
-    if(rotaLay) mapa.removeLayer(rotaLay);
-    rotaLay=L.polyline([cA,cB],{color:'#8B5E9E',weight:3,dashArray:'8 5',opacity:.75}).addTo(mapa);
-    mapa.fitBounds(rotaLay.getBounds(),{padding:[40,40]});
-    const perto=[...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geoSeg(a.lat,a.lng,cA[0],cA[1],cB[0],cB[1])<200).length;
-    let score,cor,lbl;
-    if(!perto){score=10;cor='#4A7C6F';lbl='Caminho seguro';}
-    else if(perto<=2){score=7;cor='#8B5E9E';lbl=`Atenção — ${perto} alerta(s)`;}
-    else if(perto<=5){score=4;cor='#C97B8A';lbl=`Cuidado — ${perto} alertas`;}
-    else{score=2;cor='#C62828';lbl=`Evite — ${perto} alertas`;}
-    document.getElementById('rscore-v').textContent=`${score}/10`;
-    document.getElementById('rscore-v').style.color=cor;
-    si('rscore-l',lbl+' · '+(geodist(cA[0],cA[1],cB[0],cB[1])/1000).toFixed(1)+'km');
-    se.style.cssText=`display:block;border-radius:9px;padding:10px;text-align:center;margin-top:7px;background:${cor}18;border:1px solid ${cor}33;animation:entrar .2s ease;`;
-  }catch{toast('verm','Erro ao calcular','');}
+function setPeriodo(btn) {
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
 }
+
+function filtrarPorPeriodo(arr, periodo) {
+  const agora = new Date();
+  const limites = { '2h': 2*3600e3, '24h': 24*3600e3, '7d': 7*864e5 };
+  const ms = limites[periodo];
+  if (!ms) return arr;
+  return arr.filter(a => {
+    try {
+      const [d,m,y] = (a.data||'').split('/').map(Number);
+      const [h,mi] = (a.hora||'00:00').split(':').map(Number);
+      const dt = new Date(y||agora.getFullYear(), (m||1)-1, d||agora.getDate(), h||0, mi||0);
+      return (agora - dt) <= ms;
+    } catch { return true; }
+  });
+}
+
+function distRotaPts(pLat, pLon, pts) {
+  let min = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const d = geoSeg(pLat, pLon, pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1]);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+async function calcRota() {
+  const pA = document.getElementById('rota-a').value.trim();
+  const pB = document.getElementById('rota-b').value.trim();
+  if (!pA || !pB) { toast('verm', 'Preencha os dois campos', ''); return; }
+
+  const se = document.getElementById('rota-score');
+  se.className = 'rota-score vis';
+  si('rscore-v', '...');
+  si('rscore-l', 'buscando rota...');
+  document.getElementById('rscore-v').style.color = 'var(--cinza)';
+
+  try {
+    const [cA, cB] = await Promise.all([geocode(pA), geocode(pB)]);
+    if (!cA || !cB) { toast('verm', 'Endereço não encontrado', ''); se.className = 'rota-score'; return; }
+
+    // Busca rota real via OSRM; cai em linha reta se falhar
+    let rotaPts = [cA, cB];
+    try {
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${cA[1]},${cA[0]};${cB[1]},${cB[0]}?overview=full&geometries=geojson`;
+      const rj = await (await fetch(osrmUrl)).json();
+      if (rj.routes && rj.routes[0]) {
+        rotaPts = rj.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      }
+    } catch {}
+
+    if (rotaLay) mapa.removeLayer(rotaLay);
+    rotaLay = L.polyline(rotaPts, { color:'#8B5E9E', weight:4, dashArray:'8 5', opacity:.82 }).addTo(mapa);
+    mapa.fitBounds(rotaLay.getBounds(), { padding:[40, 40] });
+
+    // Filtra alertas pelo período selecionado
+    const periodo = document.querySelector('.pbtn.on')?.dataset.p || '2h';
+    const todos   = [...dadosG, ...dadosM];
+    const emTempo = filtrarPorPeriodo(todos, periodo);
+
+    // Verifica quais alertas estão a menos de 300m da rota
+    const noTrajeto = emTempo.filter(a =>
+      a.lat && a.lng && distRotaPts(a.lat, a.lng, rotaPts) < 300
+    );
+
+    // Destaca marcadores no trajeto com anel laranja
+    if (layRota) mapa.removeLayer(layRota);
+    layRota = L.layerGroup().addTo(mapa);
+    noTrajeto.forEach(a => {
+      L.circleMarker([a.lat, a.lng], {
+        radius: 20, color: '#FF6F00', weight: 2.5,
+        fillColor: '#FF6F00', fillOpacity: 0.15
+      }).addTo(layRota);
+    });
+
+    const n = noTrajeto.length;
+    let score, cor;
+    if      (!n)    { score=10; cor='#4A7C6F'; }
+    else if (n<=2)  { score=7;  cor='#8B5E9E'; }
+    else if (n<=5)  { score=4;  cor='#C97B8A'; }
+    else            { score=2;  cor='#C62828'; }
+
+    document.getElementById('rscore-v').textContent = `${score}/10`;
+    document.getElementById('rscore-v').style.color = cor;
+    const km = (geodist(cA[0],cA[1],cB[0],cB[1])/1000).toFixed(1);
+    si('rscore-l', `${n} ocorrência${n!==1?'s':''} encontrada${n!==1?'s':''} no trajeto · ${km}km`);
+    se.style.cssText = `display:block;border-radius:9px;padding:10px;text-align:center;margin-top:7px;background:${cor}18;border:1px solid ${cor}33;animation:entrar .2s ease;`;
+
+  } catch { toast('verm', 'Erro ao calcular rota', ''); }
+}
+
 async function geocode(txt){
-  const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(txt+', São Sebastião, SP, Brasil')}&format=json&limit=1`);
+  const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(txt+', São Sebastião, DF, Brasil')}&format=json&limit=1`);
   const d=await r.json();return d.length?[parseFloat(d[0].lat),parseFloat(d[0].lon)]:null;
 }
 function geoSeg(pLat,pLon,aLat,aLon,bLat,bLon){
