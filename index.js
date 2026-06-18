@@ -31,6 +31,89 @@ function localizacaoValida(lat, lng) {
 // =====================================================
 const cache = {};
 
+// Mapa de SOS ativos: chatId -> { alertaId, timer }
+const sosAtivos = {};
+
+async function registrarSOS(chatId, alertaId) {
+  // cancela timer anterior se existir
+  if (sosAtivos[chatId]) clearTimeout(sosAtivos[chatId].timer);
+
+  // persiste no Firebase para sobreviver reinício do servidor
+  const expira = Date.now() + 60 * 60 * 1000;
+  try {
+    await fetch(`https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com/sos_ativos/${chatId}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alertaId, expira, chatId })
+    });
+  } catch(e) { console.error("Erro ao persistir SOS:", e); }
+
+  const timer = setTimeout(async () => {
+    await cancelarSOS(chatId, alertaId, true);
+  }, 60 * 60 * 1000); // 1 hora
+
+  sosAtivos[chatId] = { alertaId, timer };
+}
+
+// Restaurar SOS ativos ao iniciar servidor (caso tenha reiniciado)
+async function restaurarSOSAtivos() {
+  try {
+    const r = await fetch(`https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com/sos_ativos.json`);
+    const d = await r.json();
+    if (!d) return;
+    const agora = Date.now();
+    for (const [chatId, dados] of Object.entries(d)) {
+      if (!dados || !dados.alertaId) continue;
+      const restante = dados.expira - agora;
+      if (restante <= 0) {
+        // já expirou — cancelar
+        await cancelarSOS(chatId, dados.alertaId, true);
+      } else {
+        // reagendar timer com tempo restante
+        const timer = setTimeout(async () => {
+          await cancelarSOS(chatId, dados.alertaId, true);
+        }, restante);
+        sosAtivos[chatId] = { alertaId: dados.alertaId, timer };
+        console.log(`SOS restaurado: chatId ${chatId}, expira em ${Math.round(restante/60000)}min`);
+      }
+    }
+  } catch(e) { console.error("Erro ao restaurar SOS:", e); }
+}
+
+async function cancelarSOS(chatId, alertaId, automatico = false) {
+  if (sosAtivos[chatId]) {
+    clearTimeout(sosAtivos[chatId].timer);
+    delete sosAtivos[chatId];
+  }
+  // remover do Firebase de SOS ativos
+  try {
+    await fetch(`https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com/sos_ativos/${chatId}.json`, {
+      method: "DELETE"
+    });
+  } catch(e) { console.error("Erro ao remover SOS ativo:", e); }
+  // marcar como resolvido no Firebase
+  try {
+    await fetch(`${URL_FIREBASE}/${alertaId}.json`, {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ status: "resolvido" })
+    });
+    // notificar canal
+    const txt = automatico
+      ? `✅ *SOS encerrado automaticamente*
+
+_Nenhum cancelamento manual em 1 hora. Alerta removido do mapa._`
+      : `✅ *SOS CANCELADO — Estou bem!*
+
+_A pessoa confirmou que está segura. Alerta removido do mapa._`;
+    await fetch(`${URL_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: CANAL_ID, text: txt, parse_mode: "Markdown" })
+    });
+  } catch(e) { console.error("Erro ao cancelar SOS:", e); }
+}
+
 // =====================================================
 // PING — mantém o servidor acordado
 // =====================================================
@@ -105,13 +188,83 @@ app.post("/webhook", async (req, res) => {
     return;
   }
 
+  if (texto === "/estou_bem" || texto === "/estoubem" || texto === "/cancelar") {
+    const sos = sosAtivos[chatId];
+    if (!sos) {
+      await enviarMensagem(chatId, "ℹ️ Nenhum SOS ativo encontrado para esta conversa.");
+      return;
+    }
+    await cancelarSOS(chatId, sos.alertaId, false);
+    await enviarMensagem(chatId, "✅ *Que alívio! SOS cancelado.*\n\nO alerta foi removido do mapa. Fique segura! 💜", null);
+    return;
+  }
+
+  if (texto === "/contato") {
+    const atual = await buscarContato(chatId);
+    const msg = atual
+      ? `📱 Seu contato de emergência atual: *${atual}*\n\nPara alterar, envie o número assim:\n/contato 61999999999`
+      : `📱 Você ainda não tem um contato de emergência cadastrado.\n\nEnvie assim:\n/contato 61999999999\n\n_Este número será notificado pelo app quando você usar "Estou chegando"._`;
+    await enviarMensagem(chatId, msg);
+    return;
+  }
+
+  if (texto.startsWith("/contato ")) {
+    const numero = texto.replace("/contato", "").trim().replace(/\D/g, "");
+    if (numero.length < 10 || numero.length > 13) {
+      await enviarMensagem(chatId, "❌ Número inválido. Envie com DDD, sem espaços ou traços.\nEx: /contato 61999999999");
+      return;
+    }
+    await salvarContato(chatId, numero);
+    await enviarMensagem(chatId,
+      `✅ *Contato salvo!*\n\n📱 ${numero}\n\n` +
+      `Este número será notificado automaticamente pelo app quando você ativar "Estou chegando" e não confirmar chegada no tempo definido.\n\n` +
+      `_Para alterar, envie /contato + novo número._`
+    );
+    return;
+  }
+
   await enviarMensagem(chatId,
-    "👋 Olá! Bem-vindo à Rede de Segurança de São Sebastião — DF.\n\n" +
-    "🚨 Use /alerta para reportar algo suspeito.\n" +
+    "👋 Bem-vinda à Rede de Segurança de São Sebastião — DF.\n\n" +
+    "🆘 *SOS* — use o botão no app ou /sos\n" +
+    "   ✅ Para cancelar: /estou\_bem\n\n" +
+    "🚨 *Alerta geral* — /alerta + descrição\n" +
     "   Ex: /alerta Carro parado há horas\n\n" +
-    "🚺 Use /registrar para o Espaço Seguro das Mulheres."
+    "🚺 *Espaço Seguro* — /registrar\n\n" +
+    "📱 *Contato de emergência* — /contato\n" +
+    "   Ex: /contato 61999999999"
   );
+  // avisar se não tem contato cadastrado
+  const contatoBV = await buscarContato(chatId);
+  if (!contatoBV) {
+    await enviarMensagem(chatId,
+      "⚠️ *Você ainda não tem um contato de emergência cadastrado.*\n\n" +
+      "Cadastre agora o número de alguém de confiança — mãe, amiga, familiar — " +
+      "que será avisado se você não confirmar chegada no app:\n\n" +
+      "/contato 61999999999"
+    );
+  }
 });
+
+// =====================================================
+// USUÁRIOS — contato de emergência salvo no Firebase
+// =====================================================
+const URL_USUARIOS = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com/usuarios";
+
+async function buscarContato(chatId) {
+  try {
+    const r = await fetch(`${URL_USUARIOS}/${chatId}.json`);
+    const d = await r.json();
+    return d?.contato || null;
+  } catch { return null; }
+}
+
+async function salvarContato(chatId, numero) {
+  await fetch(`${URL_USUARIOS}/${chatId}.json`, {
+    method:  "PUT",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ contato: numero, atualizado: new Date().toISOString() })
+  });
+}
 
 // =====================================================
 // FLUXO GERAL
@@ -156,12 +309,27 @@ async function salvarAlerta(chatId, lat, lng) {
 
   await notificarCanal(alerta, id);
 
-  const msg = tipo === "mulher"
-    ? "💜 Relato registrado com segurança. Obrigada por contribuir!"
-    : tipo === "sos"
-      ? "🆘 SOS registrado! A rede foi alertada. Fique segura — ajuda a caminho."
-      : "✅ Alerta registrado! A rede foi notificada.";
-  await enviarMensagem(chatId, msg);
+  if (tipo === "sos") {
+    registrarSOS(chatId, id);
+    await enviarMensagem(chatId,
+      "🆘 SOS registrado! A rede foi alertada. Fique segura — ajuda a caminho.\n\n" +
+      "Quando estiver segura, envie /estou\_bem para cancelar o alerta.\n" +
+      "_O alerta é encerrado automaticamente após 1 hora._"
+    );
+    // avisar se não tem contato de emergência cadastrado
+    const contato = await buscarContato(chatId);
+    if (!contato) {
+      await enviarMensagem(chatId,
+        "⚠️ *Você ainda não tem um contato de emergência cadastrado.*\n\n" +
+        "Quando estiver segura, cadastre um número para ser notificado caso você não chegue:\n\n" +
+        "/contato 61999999999"
+      );
+    }
+  } else if (tipo === "mulher") {
+    await enviarMensagem(chatId, "💜 Relato registrado com segurança. Obrigada por contribuir!");
+  } else {
+    await enviarMensagem(chatId, "✅ Alerta registrado! A rede foi notificada.");
+  }
 }
 
 async function notificarCanal(alerta, id) {
@@ -256,12 +424,12 @@ const CATEGORIAS = {
 
 async function mostrarCategorias(chatId) {
   const botoes = { inline_keyboard: [
-    [{ text: "🌑 Sem iluminação",         callback_data: "cat_iluminacao" }],
-    [{ text: "🚷 Local ermo ou hostil",   callback_data: "cat_deserto"    }],
-    [{ text: "😔 Assédio sofrido",        callback_data: "cat_assedio"    }],
-    [{ text: "👁️ Fui seguida",            callback_data: "cat_seguida"    }],
-    [{ text: "🚌 Ponto de ônibus perigoso", callback_data: "cat_onibus"   }],
-    [{ text: "😰 Lugar me deixou com medo", callback_data: "cat_medo"     }]
+    [{ text: "🌑 Sem iluminação",           callback_data: "cat_iluminacao" }],
+    [{ text: "🚷 Local ermo ou hostil",     callback_data: "cat_deserto"    }],
+    [{ text: "😔 Assédio sofrido",          callback_data: "cat_assedio"    }],
+    [{ text: "👁️ Fui seguida",              callback_data: "cat_seguida"    }],
+    [{ text: "🚌 Ponto de ônibus perigoso", callback_data: "cat_onibus"     }],
+    [{ text: "😰 Lugar me deixou com medo", callback_data: "cat_medo"       }]
   ]};
   await enviarMensagem(chatId,
     "💜 Espaço Seguro — São Sebastião DF\n\nO que você quer registrar?\n_(seu nome nunca é guardado)_",
@@ -303,4 +471,7 @@ async function enviarMensagem(chatId, texto, teclado) {
 // INICIA O SERVIDOR
 // =====================================================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+  restaurarSOSAtivos();
+});

@@ -41,6 +41,7 @@ a{text-decoration:none}
 @keyframes mkpulse  {0%,100%{transform:scale(1) rotate(-45deg)}35%{transform:scale(1.55) rotate(-45deg)}70%{transform:scale(.88) rotate(-45deg)}}
 @keyframes sos-pulse{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,.7),0 3px 10px rgba(0,0,0,.35)}60%{box-shadow:0 0 0 12px rgba(198,40,40,0),0 3px 10px rgba(0,0,0,.35)}}
 .mk-sos>div{animation:sos-pulse 1.6s ease-out infinite !important}
+.acbtn-ativo{background:var(--verde-cl)!important;color:var(--verde)!important;border-color:var(--verde)!important;}
 
 /* ═══ NAV ═══ */
 nav {
@@ -132,12 +133,30 @@ nav {
 }
 .gaveta.ab .g-panel{transform:translateX(0);opacity:1;pointer-events:all}
 
-/* DETALHE DE MARCADOR SELECIONADO */
-.sel-detalhe{padding:12px 14px;border-bottom:1px solid var(--borda);display:none}
-.sel-detalhe.vis{display:block;animation:entrar .22s ease}
-.sel-nome{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;margin-bottom:4px}
-.sel-meta{font-size:.74rem;color:var(--cinza);line-height:1.6}
-.sel-score{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:3px 9px;border-radius:100px;font-size:.68rem;font-weight:500}
+/* DETALHE DE MARCADOR SELECIONADO (gaveta - mantido para retrocompat) */
+.sel-detalhe{display:none}
+
+/* POPUP FLUTUANTE SOBRE O MAPA */
+#map-popup{
+  position:absolute;z-index:500;
+  background:var(--branco);
+  border:1px solid var(--borda);
+  border-radius:16px;
+  box-shadow:0 8px 32px rgba(28,25,23,.18);
+  padding:14px 16px;
+  min-width:230px;max-width:290px;
+  pointer-events:all;
+  display:none;
+  animation:entrar .18s ease;
+}
+#map-popup.vis{display:block}
+#map-popup .mp-nome{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:400;margin-bottom:4px;line-height:1.3}
+#map-popup .mp-loc{font-size:.72rem;color:var(--cinza);line-height:1.6;margin-bottom:6px}
+#map-popup .mp-score{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;font-size:.67rem;font-weight:500;margin-bottom:10px}
+#map-popup .mp-acoes{display:flex;gap:7px;flex-wrap:wrap}
+#map-popup .mp-acoes .acbtn{font-size:.7rem;padding:5px 10px}
+#map-popup-close{position:absolute;top:8px;right:10px;background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--cinza);line-height:1;padding:2px 4px}
+#map-popup-close:hover{color:var(--preto)}
 .ss-ok{background:var(--verde-cl);color:var(--verde)}
 .ss-med{background:var(--lilas-cl);color:var(--lilas)}
 .ss-mal{background:var(--rosa-cl);color:var(--rosa)}
@@ -515,6 +534,13 @@ canvas{display:block;width:100%}
 <!-- STAGE -->
 <div class="stage">
   <div id="mapa"></div>
+<div id="map-popup">
+  <button id="map-popup-close" onclick="fecharMapPopup()">✕</button>
+  <div class="mp-nome" id="mp-nome"></div>
+  <div class="mp-loc" id="mp-loc"></div>
+  <div class="mp-score" id="mp-score"></div>
+  <div class="mp-acoes" id="mp-acoes"></div>
+</div>
 
   <!-- FILTRO (desktop overlay) -->
   <div class="filtro-overlay">
@@ -618,7 +644,8 @@ canvas{display:block;width:100%}
                 </div>
                 <p style="font-size:.72rem;color:var(--cinza);line-height:1.6;margin-bottom:9px">Avisa alertas em <strong>500m</strong> e notifica um contato se você não chegar.</p>
                 <div id="ch-form" style="margin-bottom:9px">
-                  <input id="ch-tel" type="tel" placeholder="📱 WhatsApp do contato (ex: 61999999999)" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.75rem;color:var(--preto);outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:6px">
+                  <input id="ch-tel" type="tel" placeholder="📱 WhatsApp do contato (ex: 61999999999)" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.75rem;color:var(--preto);outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:4px">
+                  <p style="font-size:.67rem;color:var(--cinza);margin-bottom:6px;line-height:1.5">Para salvar o número permanentemente, envie <strong>/contato 61999999999</strong> no bot do Telegram.</p>
                   <div style="display:flex;gap:6px;align-items:center">
                     <input id="ch-min" type="number" min="1" max="120" value="20" style="width:64px;padding:7px 8px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.75rem;color:var(--preto);outline:none;font-family:inherit;text-align:center">
                     <span style="font-size:.72rem;color:var(--cinza)">minutos para chegar</span>
@@ -723,7 +750,8 @@ canvas{display:block;width:100%}
         </div>
         <p style="font-size:.72rem;color:var(--cinza);line-height:1.6;margin-bottom:9px">Avisa alertas em <strong>500m</strong> e notifica um contato se você não chegar.</p>
         <div id="mob-ch-form" style="margin-bottom:9px">
-          <input id="mob-ch-tel" type="tel" placeholder="📱 WhatsApp do contato (ex: 61999999999)" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.75rem;color:var(--preto);outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:6px">
+          <input id="mob-ch-tel" type="tel" placeholder="📱 WhatsApp do contato (ex: 61999999999)" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.75rem;color:var(--preto);outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:4px">
+          <p style="font-size:.67rem;color:var(--cinza);margin-bottom:6px;line-height:1.5">Para salvar permanentemente, envie <strong>/contato 61999999999</strong> no bot.</p>
           <div style="display:flex;gap:6px;align-items:center">
             <input id="mob-ch-min" type="number" min="1" max="120" value="20" style="width:64px;padding:7px 8px;border:1px solid var(--borda);border-radius:8px;background:var(--creme2);font-size:.75rem;color:var(--preto);outline:none;font-family:inherit;text-align:center">
             <span style="font-size:.72rem;color:var(--cinza)">minutos para chegar</span>
@@ -934,15 +962,25 @@ function contarPerto(lat, lng, arr) {
   return arr.filter(a => a.lat && a.lng && Math.abs(a.lat-lat)<.0015 && Math.abs(a.lng-lng)<.0015).length;
 }
 
+// offset para evitar sobreposição de marcadores no mesmo ponto
+function offsetPos(lat, lng, idx) {
+  if (idx === 0) return [lat, lng];
+  const ang = (idx-1) * 137.5 * Math.PI/180; // espiral áurea
+  const r = 0.00015 + (Math.floor((idx-1)/8)) * 0.00010;
+  return [lat + r*Math.sin(ang), lng + r*Math.cos(ang)];
+}
+
 function renderMarcG(arr) {
   layG.clearLayers();
-  arr.filter(a => !isSOS(a)).forEach(a => {
-    if (!a.lat || !a.lng) return;
-    const cnt = contarPerto(a.lat, a.lng, arr);
-    const sz  = 28 + Math.min(cnt * 4, 18);
+  const posCount = {};
+  arr.filter(a => !isSOS(a) && a.lat && a.lng).forEach(a => {
+    const k = `${(+a.lat).toFixed(4)},${(+a.lng).toFixed(4)}`;
+    posCount[k] = (posCount[k]||0);
+    const idx = posCount[k]++;
+    const [lat2, lng2] = offsetPos(+a.lat, +a.lng, idx);
     const cor = a.status==='confirmado' ? '#e74c3c' : '#aaaaaa';
     const ico = a.status==='confirmado' ? '🚨' : '⏳';
-    const mk  = L.marker([a.lat, a.lng], { icon: mkIcon(cor, ico, sz) });
+    const mk  = L.marker([lat2, lng2], { icon: mkIcon(cor, ico, 30) });
     mk.on('click', () => aoClicarMarcador(a));
     mk.addTo(layG);
     marcadores[a.id] = mk;
@@ -952,9 +990,13 @@ function renderMarcG(arr) {
 
 function renderMarcM(arr) {
   layM.clearLayers();
-  arr.filter(a => !isSOS(a)).forEach(a => {
-    if (!a.lat || !a.lng) return;
-    const mk = L.marker([a.lat, a.lng], { icon: mkIcon('#8B5E9E', '🚺', 30) });
+  const posCount = {};
+  arr.filter(a => !isSOS(a) && a.lat && a.lng).forEach(a => {
+    const k = `${(+a.lat).toFixed(4)},${(+a.lng).toFixed(4)}`;
+    posCount[k] = (posCount[k]||0);
+    const idx = posCount[k]++;
+    const [lat2, lng2] = offsetPos(+a.lat, +a.lng, idx);
+    const mk = L.marker([lat2, lng2], { icon: mkIcon('#8B5E9E', '🚺', 30) });
     mk.on('click', () => aoClicarMarcador(a));
     mk.addTo(layM);
     marcadores[a.id] = mk;
@@ -990,7 +1032,8 @@ function aoClicarMarcador(alerta) {
   const local = displayLocal(alerta);
   const quando = tempoAtras(alerta.data, alerta.hora);
   const count  = [...dadosG,...dadosM].filter(a=>a.lat&&a.lng&&geodist(a.lat,a.lng,alerta.lat,alerta.lng)<200).length;
-  mapa.flyTo([alerta.lat, alerta.lng], 16, { duration:1 });
+  mapa.flyTo([alerta.lat, alerta.lng], 16, { duration:.8 });
+
   if (isMob()) {
     const fem = dadosM.some(x=>x.id===alerta.id);
     const card = fem ? cardM(alerta) : cardG(alerta);
@@ -1000,20 +1043,74 @@ function aoClicarMarcador(alerta) {
     si('bs-lista-g', card + mais);
     abrirBsheet();
   } else {
-    abrirGaveta();
-    const sd = document.getElementById('sel-det');
-    sd.classList.add('vis');
-    si('sd-nome', esc(alerta.descricao || alerta.categoria || 'Ocorrência'));
-    document.getElementById('sd-meta').innerHTML = `📍 ${esc(local)}<br>🕐 ${quando} · ${alerta.confirmacoes||0} confirmações`;
-    const sc = document.getElementById('sd-score');
-    if (count <= 1)      { sc.className='sel-score ss-ok';  sc.textContent='✓ Área tranquila'; }
-    else if (count <= 3) { sc.className='sel-score ss-med'; sc.textContent=`⚠ ${count} ocorrências próximas`; }
-    else                 { sc.className='sel-score ss-mal'; sc.textContent=`⚠ ${count} ocorrências — atenção`; }
-    const ptabBtn = document.querySelector('.ptab');
-    if (ptabBtn) setPtab(ptabBtn, 'pt-feed');
-    setTab('feed');
+    // popup flutuante sobre o mapa
+    setTimeout(() => mostrarMapPopup(alerta, local, quando, count), 200);
   }
 }
+
+function mostrarMapPopup(alerta, local, quando, count) {
+  const popup = document.getElementById('map-popup');
+  const sos = isSOS(alerta);
+  const fem = dadosM.some(x=>x.id===alerta.id);
+
+  si('mp-nome', esc(alerta.descricao || alerta.categoria || 'Ocorrência'));
+  si('mp-loc', `📍 ${esc(local)} &nbsp;·&nbsp; 🕐 ${quando}`);
+
+  const sc = document.getElementById('mp-score');
+  if (count <= 1)      { sc.className='mp-score ss-ok';  sc.textContent='✓ Área tranquila'; }
+  else if (count <= 3) { sc.className='mp-score ss-med'; sc.textContent=`⚠ ${count} ocorrências próximas`; }
+  else                 { sc.className='mp-score ss-mal'; sc.textContent=`⚠ ${count} ocorrências — atenção`; }
+
+  // botões de ação
+  const wpp = encodeURIComponent(`🚨 Alerta em ${local}: ${alerta.descricao||alerta.categoria||''} — Escudo Violeta São Sebastião`);
+  let acoes = '';
+  if (sos) {
+    const jaAjudando = !!localStorage.getItem('ev_sos_'+alerta.id);
+    const nAjuda = alerta.ajudando||0;
+    acoes = `<button class="acbtn${jaAjudando?' acbtn-ativo':''}" onclick="vouAjudar('${alerta.id}',this)">${jaAjudando?'✅ Estou indo':'🏃 Estou indo'}${nAjuda>0?` (${nAjuda})`:''}</button>
+             <a class="acbtn" href="tel:190" style="background:#C62828;color:#fff;border-color:#C62828">📞 190</a>`;
+  } else if (fem) {
+    acoes = `<a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank">📲 Compartilhar</a>`;
+  } else {
+    const jaVotou = !!localStorage.getItem('ev_'+alerta.id);
+    const btnConf = jaVotou ? '' : `<button class="acbtn" onclick="confirmar('${alerta.id}')">👍 Confirmar</button>`;
+    acoes = `${btnConf}<a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank">📲 WhatsApp</a>`;
+  }
+  si('mp-acoes', acoes);
+
+  // posicionar popup próximo ao marcador, dentro dos limites visíveis do mapa
+  const mk = marcadores[alerta.id];
+  const mapaEl = document.getElementById('mapa');
+  const mapaRect = mapaEl ? mapaEl.getBoundingClientRect() : null;
+  if (mk && mapaRect) {
+    const pt = mapa.latLngToContainerPoint([alerta.lat, alerta.lng]);
+    const popupW = 300, popupH = 160;
+    const mapaW = mapaRect.width;
+    const mapaH = mapaRect.height;
+    // preferir à direita do marcador; se não couber, à esquerda
+    let left = pt.x + 18;
+    if (left + popupW > mapaW - 20) left = pt.x - popupW - 10;
+    left = Math.max(10, left);
+    // preferir acima; se não couber, abaixo
+    let top = pt.y - popupH - 10;
+    if (top < 70) top = pt.y + 20;
+    top = Math.min(top, mapaH - popupH - 10);
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+  } else {
+    popup.style.left = '80px';
+    popup.style.top  = '120px';
+  }
+
+  popup.classList.add('vis');
+}
+
+function fecharMapPopup() {
+  document.getElementById('map-popup').classList.remove('vis');
+}
+
+// fechar popup ao clicar no mapa
+// (adicionado após init do mapa)
 
 /* ── GAVETA ── */
 let gavetaAb = false;
@@ -1150,21 +1247,66 @@ function isFemReport(a){
 }
 
 function cardG(a) {
-  const ok=a.status==='confirmado', sos=(a.categoria||'').toLowerCase().includes('ajuda');
+  const ok=a.status==='confirmado', sos=isSOS(a);
   const cls=sos?'b-sos':ok?'b-ok':'b-pend';
   const lbl=sos?'🆘 SOS':ok?`✓ ${a.confirmacoes||0} conf.`:'pendente';
   const local=displayLocal(a);
   const wpp=encodeURIComponent(`🚨 Alerta em ${local}: ${a.descricao||''} (${tempoAtras(a.data,a.hora)}) — Escudo Violeta São Sebastião`);
   const jaVotou=!!localStorage.getItem('ev_'+a.id);
-  const btnConf=isFemReport(a)||jaVotou?'':`<button class="acbtn" onclick="event.stopPropagation();confirmar('${a.id}')">👍 Confirmar</button>`;
+
+  let acoes = '';
+  if (sos) {
+    const jaAjudando = !!localStorage.getItem('ev_sos_'+a.id);
+    const nAjuda = a.ajudando||0;
+    acoes = `
+      <button class="acbtn${jaAjudando?' acbtn-ativo':''}" onclick="event.stopPropagation();vouAjudar('${a.id}',this)">
+        ${jaAjudando?'✅ Estou indo':'🏃 Estou indo ajudar'}${nAjuda>0?` (${nAjuda})`:''}
+      </button>
+      <a class="acbtn" href="tel:190" onclick="event.stopPropagation()" style="background:#C62828;color:#fff;border-color:#C62828">📞 190</a>`;
+  } else {
+    const btnConf = isFemReport(a)||jaVotou?'':`<button class="acbtn" onclick="event.stopPropagation();confirmar('${a.id}')">👍 Confirmar</button>`;
+    acoes = `${btnConf}<a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank" onclick="event.stopPropagation()">📲 WhatsApp</a>`;
+  }
+
   return `<div class="acard" onclick="aoClicarCard(${safeJson(a)})">
     <div class="atop"><div class="adesc">${esc(a.descricao||'Ocorrência')}</div><span class="abadge ${cls}">${lbl}</span></div>
     <div class="aloc" data-lid="${a.id}">📍 ${esc(local)} <span style="opacity:.5;margin-left:3px">· ${tempoAtras(a.data,a.hora)}</span></div>
-    <div class="aacoes">
-      ${btnConf}
-      <a class="acbtn wpp" href="https://wa.me/?text=${wpp}" target="_blank" onclick="event.stopPropagation()">📲 WhatsApp</a>
-    </div>
+    <div class="aacoes">${acoes}</div>
   </div>`;
+}
+
+async function vouAjudar(id, btn) {
+  if (localStorage.getItem('ev_sos_'+id)) return;
+  localStorage.setItem('ev_sos_'+id, '1');
+  btn.disabled = true;
+  try {
+    // usar incremento atômico via Firebase REST (lê e escreve com etag)
+    const resp = await fetch(`${FB}/alertas/${id}/ajudando.json`, {
+      headers: { 'X-HTTP-Method-Override': 'GET' }
+    });
+    const atual = (await resp.json()) || 0;
+    const n = atual + 1;
+    await fetch(`${FB}/alertas/${id}/ajudando.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(n)
+    });
+    btn.textContent = `✅ Estou indo (${n})`;
+    btn.classList.add('acbtn-ativo');
+    // atualizar popup se estiver aberto
+    const mpAcoes = document.getElementById('mp-acoes');
+    if (mpAcoes) {
+      const btnPop = mpAcoes.querySelector('.acbtn');
+      if (btnPop && btnPop.textContent.includes('indo')) {
+        btnPop.textContent = `✅ Estou indo (${n})`;
+        btnPop.classList.add('acbtn-ativo');
+      }
+    }
+  } catch {
+    localStorage.removeItem('ev_sos_'+id);
+    btn.disabled = false;
+    toast('verm','Erro ao registrar. Tente novamente.','');
+  }
 }
 
 function cardM(a) {
@@ -1317,9 +1459,12 @@ async function iniciarCheg(){
   if(!navigator.geolocation){toast('verm','Geolocalização indisponível','');return;}
   if(Notification.permission==='default') await Notification.requestPermission();
 
-  // ler campos
-  const tel = (document.getElementById('ch-tel')||document.getElementById('mob-ch-tel'))?.value.trim().replace(/\D/g,'');
-  const min = parseInt((document.getElementById('ch-min')||document.getElementById('mob-ch-min'))?.value)||20;
+  // ler campos — persiste número
+  const telEl = document.getElementById('ch-tel')||document.getElementById('mob-ch-tel');
+  const minEl = document.getElementById('ch-min')||document.getElementById('mob-ch-min');
+  const tel = (telEl?.value||'').trim().replace(/\D/g,'');
+  const min = parseInt(minEl?.value)||20;
+  if(tel) localStorage.setItem('ev_contato_tel', tel);
 
   chegAtivo=true;
   _chFormVis(false);
@@ -1398,6 +1543,31 @@ function pararCheg(){
   _chBox('cbox', null);
   _chFormVis(true);
   _chTimerVis(false);
+}
+
+/* ── LIMPEZA DE ALERTAS ANTIGOS (>30 dias) ── */
+async function limparAlertasAntigos() {
+  const LIMITE_MS = 30 * 24 * 60 * 60 * 1000;
+  const agora = new Date();
+  const nos = ['/alertas', '/alertas_mulheres'];
+  for (const no of nos) {
+    try {
+      const r = await fetch(`${FB}${no}.json`);
+      const d = await r.json();
+      if (!d) continue;
+      for (const [id, alerta] of Object.entries(d)) {
+        if (!alerta.data || !alerta.hora) continue;
+        try {
+          const [dia, mes, ano] = alerta.data.split('/').map(Number);
+          const [h, mi] = (alerta.hora||'00:00').split(':').map(Number);
+          const dt = new Date(ano, mes-1, dia, h, mi);
+          if (agora - dt > LIMITE_MS) {
+            await fetch(`${FB}${no}/${id}.json`, { method: 'DELETE' });
+          }
+        } catch {}
+      }
+    } catch {}
+  }
 }
 
 /* ── SOS ── */
@@ -1652,6 +1822,28 @@ function vizNotif(alerta){
 
 /* ── INIT ── */
 carregarTudo();
+mapa.on('click', fecharMapPopup);
+limparAlertasAntigos();
+// restaurar número de contato — tenta Firebase, fallback localStorage
+(async function(){
+  // tenta puxar do Firebase pelo chatId salvo (se usuário já usou o bot)
+  const chatId = localStorage.getItem('ev_chatid');
+  if(chatId){
+    try{
+      const r = await fetch(`${FB}/usuarios/${chatId}.json`);
+      const d = await r.json();
+      if(d?.contato){
+        ['ch-tel','mob-ch-tel'].forEach(id=>{const el=document.getElementById(id);if(el){el.value=d.contato;el.placeholder='📱 '+d.contato+' (salvo no bot)';}});
+        localStorage.setItem('ev_contato_tel', d.contato);
+        return;
+      }
+    }catch{}
+  }
+  // fallback: localStorage
+  const tel = localStorage.getItem('ev_contato_tel');
+  if(!tel) return;
+  ['ch-tel','mob-ch-tel'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=tel;});
+})();
 setInterval(carregarTudo, 30000);
 new ResizeObserver(()=>{
   if(document.getElementById('pt-hist').style.display!=='none') buildHistorico();
