@@ -35,6 +35,7 @@ const cache = {};
 // PING — mantém o servidor acordado
 // =====================================================
 app.get("/ping", (req, res) => res.send("ok"));
+app.get("/", (req, res) => res.sendFile(__dirname + "/projeto.html"));
 
 const https = require("https");
 setInterval(() => {
@@ -248,7 +249,9 @@ const CATEGORIAS = {
   "cat_iluminacao": "🌑 Sem iluminação",
   "cat_deserto":    "🚷 Local ermo ou hostil",
   "cat_assedio":    "😔 Assédio sofrido",
-  "cat_sos":        "🆘 Preciso de ajuda AGORA"
+  "cat_seguida":    "👁️ Fui seguida",
+  "cat_onibus":     "🚌 Ponto de ônibus perigoso",
+  "cat_medo":       "😰 Lugar me deixou com medo"
 };
 
 async function mostrarCategorias(chatId) {
@@ -256,7 +259,9 @@ async function mostrarCategorias(chatId) {
     [{ text: "🌑 Sem iluminação",         callback_data: "cat_iluminacao" }],
     [{ text: "🚷 Local ermo ou hostil",   callback_data: "cat_deserto"    }],
     [{ text: "😔 Assédio sofrido",        callback_data: "cat_assedio"    }],
-    [{ text: "🆘 Preciso de ajuda AGORA", callback_data: "cat_sos"        }]
+    [{ text: "👁️ Fui seguida",            callback_data: "cat_seguida"    }],
+    [{ text: "🚌 Ponto de ônibus perigoso", callback_data: "cat_onibus"   }],
+    [{ text: "😰 Lugar me deixou com medo", callback_data: "cat_medo"     }]
   ]};
   await enviarMensagem(chatId,
     "💜 Espaço Seguro — São Sebastião DF\n\nO que você quer registrar?\n_(seu nome nunca é guardado)_",

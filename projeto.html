@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rede de Segurança — São Sebastião</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root {
+    --creme:    #FAF7F2;
+    --creme2:   #F3EDE3;
+    --branco:   #FDFCFA;
+    --preto:    #1C1917;
+    --lilas:    #8B5E9E;
+    --lilas-cl: #EFE6F5;
+    --lilas-m:  #B08EC0;
+    --rosa:     #C97B8A;
+    --rosa-cl:  #F7EAED;
+    --terra:    #8C6E5A;
+    --verde:    #4A7C6F;
+    --verde-cl: #E2EFEC;
+    --cinza:    #6B6560;
+    --borda:    rgba(28,25,23,0.08);
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--creme); color:var(--preto); font-family:'DM Sans',sans-serif; font-weight:300; overflow-x:hidden; }
+
+  /* ── NAV ── */
+  nav {
+    position:fixed; top:0; left:0; right:0; z-index:300;
+    background:rgba(250,247,242,0.94); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--borda);
+    height:62px; display:flex; align-items:center;
+    padding:0 32px; gap:24px;
+  }
+  .nav-logo {
+    font-family:'Cormorant Garamond',serif; font-size:1.05rem; font-weight:600;
+    color:var(--preto); text-decoration:none;
+    display:flex; align-items:center; gap:9px; margin-right:auto;
+  }
+  .nav-dot { width:8px; height:8px; border-radius:50%; background:var(--lilas); animation:pulsar 3s ease-in-out infinite; }
+  @keyframes pulsar { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }
+  .nav-link { font-size:0.82rem; color:var(--cinza); text-decoration:none; transition:color .2s; }
+  .nav-link:hover { color:var(--lilas); }
+  .nav-btn {
+    background:var(--lilas); color:#fff; border:none; border-radius:100px;
+    padding:9px 20px; font-size:0.82rem; font-weight:500; font-family:'DM Sans',sans-serif;
+    cursor:pointer; text-decoration:none; transition:opacity .2s;
+  }
+  .nav-btn:hover { opacity:0.84; }
+  @media(max-width:600px){ .nav-link{display:none;} nav{padding:0 20px;} }
+
+  /* ── HERO ── */
+  .hero {
+    min-height:100vh; padding:130px 40px 90px;
+    display:flex; flex-direction:column; justify-content:center;
+    position:relative; overflow:hidden;
+  }
+  .hero::before {
+    content:''; position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 55% 65% at 85% 15%, rgba(139,94,158,0.09) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 50% at 15% 85%, rgba(201,123,138,0.07) 0%, transparent 55%);
+  }
+  .hero-inner { max-width:720px; margin:0 auto; position:relative; z-index:1; animation:subir .9s ease both; }
+  @keyframes subir { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+
+  .chip {
+    display:inline-flex; align-items:center; gap:7px;
+    background:var(--lilas-cl); border:1px solid rgba(139,94,158,0.18);
+    border-radius:100px; padding:7px 16px;
+    font-size:0.72rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--lilas); margin-bottom:36px; animation:subir .9s .1s ease both;
+  }
+  .hero h1 {
+    font-family:'Cormorant Garamond',serif; font-size:clamp(3rem,7.5vw,5.8rem);
+    font-weight:300; line-height:1.02; letter-spacing:-0.02em;
+    animation:subir .9s .15s ease both;
+  }
+  .hero h1 em { font-style:italic; color:var(--lilas); }
+
+  .hero-sub {
+    font-size:clamp(.95rem,1.8vw,1.1rem); font-weight:300; color:var(--cinza);
+    line-height:1.85; max-width:500px; margin-top:26px;
+    animation:subir .9s .2s ease both;
+  }
+  .hero-acoes {
+    display:flex; flex-wrap:wrap; gap:12px; margin-top:42px;
+    animation:subir .9s .28s ease both;
+  }
+  .btn-p {
+    background:var(--lilas); color:#fff; border:none; border-radius:100px;
+    padding:15px 30px; font-size:0.88rem; font-weight:500; font-family:'DM Sans',sans-serif;
+    cursor:pointer; text-decoration:none; transition:all .25s;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-p:hover { background:#7A5190; transform:translateY(-1px); }
+  .btn-s {
+    background:transparent; color:var(--preto);
+    border:1px solid var(--borda); border-radius:100px;
+    padding:15px 30px; font-size:0.88rem; font-weight:400; font-family:'DM Sans',sans-serif;
+    cursor:pointer; text-decoration:none; transition:all .25s;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-s:hover { border-color:var(--lilas); color:var(--lilas); }
+
+  .hero-nums {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:1px; background:var(--borda);
+    border:1px solid var(--borda); border-radius:18px; overflow:hidden;
+    margin-top:68px; animation:subir .9s .36s ease both;
+  }
+  .hero-num { background:var(--branco); padding:26px 22px; }
+  .hero-num-v {
+    font-family:'Cormorant Garamond',serif; font-size:2.2rem; font-weight:300;
+    color:var(--lilas); line-height:1;
+  }
+  .hero-num-l { font-size:0.76rem; color:var(--cinza); margin-top:7px; line-height:1.5; }
+
+  @media(max-width:600px){
+    .hero{padding:108px 24px 70px;}
+    .hero-nums{grid-template-columns:1fr 1fr;}
+    .hero-nums .hero-num:last-child{grid-column:1/-1;}
+  }
+
+  /* ── LAYOUT BASE ── */
+  .secao { padding:96px 40px; }
+  .secao-inner { max-width:840px; margin:0 auto; }
+  .secao-label {
+    font-size:0.67rem; font-weight:500; letter-spacing:0.22em; text-transform:uppercase;
+    color:var(--lilas); display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .secao-label::before { content:''; width:22px; height:1px; background:var(--lilas); }
+  h2 { font-family:'Cormorant Garamond',serif; font-size:clamp(1.9rem,4vw,2.9rem); font-weight:300; line-height:1.1; letter-spacing:-.01em; margin-bottom:18px; }
+  h2 em { font-style:italic; color:var(--lilas); }
+  .lead { font-size:1rem; color:var(--cinza); line-height:1.85; max-width:560px; font-weight:300; }
+  @media(max-width:600px){ .secao{padding:70px 24px;} }
+
+  /* ── COMO FUNCIONA ── */
+  .como { background:var(--branco); }
+  .passos { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:44px; }
+  .passo {
+    background:var(--creme); border:1px solid var(--borda); border-radius:18px;
+    padding:28px; transition:border-color .2s;
+  }
+  .passo:hover { border-color:var(--lilas-m); }
+  .passo-n {
+    font-family:'Cormorant Garamond',serif; font-size:2.6rem; font-weight:300;
+    color:var(--lilas-m); opacity:.4; line-height:1; margin-bottom:14px;
+  }
+  .passo h3 { font-family:'Cormorant Garamond',serif; font-size:1.1rem; font-weight:600; margin-bottom:8px; }
+  .passo p { font-size:0.85rem; color:var(--cinza); line-height:1.75; }
+  .passo-ic { font-size:1.5rem; margin-bottom:12px; display:block; }
+  @media(max-width:600px){ .passos{grid-template-columns:1fr;} }
+
+  /* ── ESPAÇO SEGURO ── */
+  .espaco {
+    background:linear-gradient(140deg,#241430 0%,#1A1028 100%);
+    position:relative; overflow:hidden;
+  }
+  .espaco::before {
+    content:''; position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 55% 75% at 92% 25%, rgba(176,142,192,0.14) 0%, transparent 58%),
+      radial-gradient(ellipse 35% 45% at 8% 85%, rgba(201,123,138,0.09) 0%, transparent 55%);
+  }
+  .espaco .secao-inner { position:relative; z-index:1; }
+  .espaco .secao-label { color:var(--lilas-m); }
+  .espaco .secao-label::before { background:var(--lilas-m); }
+  .espaco h2 { color:#fff; }
+  .espaco h2 em { color:var(--lilas-m); }
+  .espaco .lead { color:rgba(255,255,255,0.5); }
+
+  .cats { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:44px; }
+  .cat {
+    background:rgba(255,255,255,0.055); border:1px solid rgba(255,255,255,0.09);
+    border-radius:16px; padding:22px; transition:background .2s, border-color .2s;
+  }
+  .cat:hover { background:rgba(176,142,192,0.12); border-color:rgba(176,142,192,0.28); }
+  .cat-ic { font-size:1.5rem; margin-bottom:10px; display:block; }
+  .cat h4 { font-family:'Cormorant Garamond',serif; font-size:1rem; font-weight:600; color:#fff; margin-bottom:6px; }
+  .cat p { font-size:0.82rem; color:rgba(255,255,255,0.42); line-height:1.65; }
+
+  .anonimo {
+    background:rgba(176,142,192,0.1); border:1px solid rgba(176,142,192,0.22);
+    border-radius:14px; padding:22px 26px; margin-top:28px;
+    display:flex; gap:14px; align-items:flex-start;
+  }
+  .anonimo-ic { font-size:1.3rem; flex-shrink:0; margin-top:1px; }
+  .anonimo p { font-size:0.85rem; color:rgba(255,255,255,0.55); line-height:1.75; }
+  .anonimo strong { color:var(--lilas-m); }
+
+  .btn-espaco {
+    display:inline-flex; align-items:center; gap:9px;
+    background:var(--lilas); color:#fff; border:none; border-radius:100px;
+    padding:16px 32px; font-size:0.88rem; font-weight:500; font-family:'DM Sans',sans-serif;
+    cursor:pointer; text-decoration:none; margin-top:36px; transition:all .25s;
+  }
+  .btn-espaco:hover { background:#7A5190; transform:translateY(-1px); }
+  @media(max-width:600px){ .cats{grid-template-columns:1fr;} }
+
+  /* ── MAPA ── */
+  .mapa-secao { background:var(--creme2); }
+  #mapa { width:100%; height:480px; border-top:1px solid var(--borda); border-bottom:1px solid var(--borda); position:relative; }
+  .mapa-ctrl {
+    position:absolute; top:12px; right:12px; z-index:1000;
+    background:rgba(250,247,242,0.96); backdrop-filter:blur(8px);
+    border:1px solid var(--borda); border-radius:12px;
+    padding:14px 16px; font-size:13px;
+    box-shadow:0 2px 20px rgba(28,25,23,0.07);
+  }
+  .mapa-ctrl strong { display:block; margin-bottom:9px; font-size:0.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--cinza); }
+  .mapa-ctrl label { display:flex; align-items:center; gap:7px; cursor:pointer; margin-bottom:7px; font-size:.82rem; color:var(--preto); }
+  .mapa-ctrl label:last-child { margin-bottom:0; }
+  .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .dg { background:#e74c3c; }
+  .dm { background:var(--lilas); }
+  .mapa-leg {
+    padding:20px 40px; max-width:840px; margin:0 auto;
+    display:flex; flex-wrap:wrap; gap:18px; align-items:center;
+  }
+  .leg { display:flex; align-items:center; gap:7px; font-size:0.78rem; color:var(--cinza); }
+  @media(max-width:600px){
+    #mapa{height:360px;}
+    .mapa-leg{padding:16px 24px;}
+  }
+
+  /* ── COMO USAR O BOT ── */
+  .bot { background:var(--branco); }
+  .bot-grid { display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:44px; align-items:start; }
+
+  .fluxo { display:flex; flex-direction:column; }
+  .step { display:flex; gap:18px; align-items:flex-start; padding:18px 0; border-bottom:1px solid var(--borda); }
+  .step:last-child { border-bottom:none; }
+  .step-ic {
+    width:42px; height:42px; min-width:42px; border-radius:11px;
+    display:flex; align-items:center; justify-content:center; font-size:1.05rem;
+    background:var(--lilas-cl); border:1px solid rgba(139,94,158,0.14); flex-shrink:0;
+  }
+  .step-ic.rosa { background:var(--rosa-cl); border-color:rgba(201,123,138,0.18); }
+  .step h4 { font-family:'Cormorant Garamond',serif; font-size:1rem; font-weight:600; margin-bottom:4px; }
+  .step p { font-size:0.83rem; color:var(--cinza); line-height:1.65; }
+
+  .cmds { background:var(--creme); border:1px solid var(--borda); border-radius:18px; padding:26px; }
+  .cmds h3 { font-family:'Cormorant Garamond',serif; font-size:1.05rem; font-weight:600; margin-bottom:18px; }
+  .cmd { background:var(--branco); border:1px solid var(--borda); border-radius:11px; padding:14px 16px; margin-bottom:9px; display:flex; gap:11px; align-items:flex-start; }
+  .cmd:last-child { margin-bottom:0; }
+  .cmd-tag { font-family:monospace; font-size:0.78rem; background:var(--lilas-cl); color:var(--lilas); padding:3px 9px; border-radius:6px; white-space:nowrap; flex-shrink:0; border:1px solid rgba(139,94,158,0.14); }
+  .cmd-tag.r { background:var(--rosa-cl); color:var(--rosa); border-color:rgba(201,123,138,0.18); }
+  .cmd p { font-size:0.82rem; color:var(--cinza); line-height:1.6; }
+
+  @media(max-width:600px){ .bot-grid{grid-template-columns:1fr; gap:28px;} }
+
+  /* ── FRASE ACOLHEDORA ── */
+  .frase { background:var(--creme2); text-align:center; }
+  .frase-inner { max-width:620px; margin:0 auto; }
+  .frase blockquote {
+    font-family:'Cormorant Garamond',serif; font-size:clamp(1.6rem,4vw,2.4rem);
+    font-weight:300; font-style:italic; line-height:1.4; color:var(--preto);
+    margin-bottom:24px;
+  }
+  .frase blockquote em { color:var(--lilas); font-style:normal; }
+  .frase p { font-size:0.85rem; color:var(--cinza); line-height:1.7; }
+
+  /* ── RODAPÉ ── */
+  footer {
+    background:var(--preto); color:rgba(255,255,255,0.35);
+    padding:40px; text-align:center; font-size:0.78rem; line-height:1.8;
+  }
+  footer strong { color:rgba(255,255,255,0.6); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <span class="nav-dot"></span>
+    Rede de Segurança
+  </a>
+  <a href="#como" class="nav-link">Como funciona</a>
+  <a href="#espaco" class="nav-link">Espaço Seguro</a>
+  <a href="#mapa" class="nav-link">Mapa</a>
+  <a href="#bot" class="nav-link">Como usar</a>
+  <a href="https://t.me/RedeSeguraSaoSebastiao" class="nav-btn" target="_blank">Acessar o Bot</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="chip">🛡️ São Sebastião · Projeto Comunitário</div>
+    <h1>Um bairro que<br>se <em>cuida</em> junto.</h1>
+    <p class="hero-sub">Uma rede de alertas feita pelos próprios moradores — e um espaço seguro e anônimo para mulheres relatarem locais que precisam de atenção.</p>
+    <div class="hero-acoes">
+      <a href="#espaco" class="btn-p">💜 Espaço Seguro para Mulheres</a>
+      <a href="#mapa" class="btn-s">🗺️ Ver o mapa</a>
+    </div>
+    <div class="hero-nums">
+      <div class="hero-num">
+        <div class="hero-num-v">0</div>
+        <div class="hero-num-l">apps para instalar — só o Telegram</div>
+      </div>
+      <div class="hero-num">
+        <div class="hero-num-v">100%</div>
+        <div class="hero-num-l">anônimo para relatos femininos</div>
+      </div>
+      <div class="hero-num">
+        <div class="hero-num-v">∞</div>
+        <div class="hero-num-l">moradores que podem participar</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section class="secao como" id="como">
+  <div class="secao-inner">
+    <p class="secao-label">Como funciona</p>
+    <h2>Simples para<br><em>qualquer pessoa.</em></h2>
+    <p class="lead">Tudo pelo Telegram — que a maioria já tem no celular. Sem criar conta nova, sem baixar outro app.</p>
+    <div class="passos">
+      <div class="passo">
+        <span class="passo-ic">💬</span>
+        <div class="passo-n">01</div>
+        <h3>Você manda o alerta</h3>
+        <p>Abra o bot no Telegram, use /alerta e descreva o que viu. O bot pede a localização com um toque.</p>
+      </div>
+      <div class="passo">
+        <span class="passo-ic">📡</span>
+        <div class="passo-n">02</div>
+        <h3>A rede é notificada</h3>
+        <p>Em segundos, todos os moradores cadastrados recebem o alerta no canal. Sem atraso, sem filtro.</p>
+      </div>
+      <div class="passo">
+        <span class="passo-ic">✅</span>
+        <div class="passo-n">03</div>
+        <h3>Outros confirmam</h3>
+        <p>Quem viu também pode confirmar com um toque. Duas confirmações e o alerta fica marcado como real.</p>
+      </div>
+      <div class="passo">
+        <span class="passo-ic">🗺️</span>
+        <div class="passo-n">04</div>
+        <h3>Aparece no mapa</h3>
+        <p>Cada ocorrência fica marcada no mapa com local, horário e status — visível para toda a comunidade.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ESPAÇO SEGURO -->
+<section class="secao espaco" id="espaco">
+  <div class="secao-inner">
+    <p class="secao-label">Espaço Seguro para Mulheres</p>
+    <h2>Aqui você<br><em>não precisa se identificar.</em></h2>
+    <p class="lead">Um canal exclusivo onde mulheres podem relatar locais inseguros de forma completamente anônima. Sem julgamentos, sem exposição.</p>
+
+    <div class="cats">
+      <div class="cat">
+        <span class="cat-ic">🌑</span>
+        <h4>Sem iluminação</h4>
+        <p>Ruas e becos escuros que precisam de atenção — registrados com localização para chegar à prefeitura.</p>
+      </div>
+      <div class="cat">
+        <span class="cat-ic">🚷</span>
+        <h4>Local ermo ou hostil</h4>
+        <p>Pontos da cidade onde você se sente insegura por falta de movimento, estrutura ou presença de pessoas.</p>
+      </div>
+      <div class="cat">
+        <span class="cat-ic">😔</span>
+        <h4>Assédio sofrido</h4>
+        <p>Registre sem se expor. Seu relato é anônimo e ajuda a identificar locais onde outras mulheres também precisam de cuidado.</p>
+      </div>
+      <div class="cat">
+        <span class="cat-ic">🆘</span>
+        <h4>Preciso de ajuda agora</h4>
+        <p>Situação de perigo imediato. Gera um alerta prioritário no canal com marcação especial no mapa.</p>
+      </div>
+    </div>
+
+    <div class="anonimo">
+      <span class="anonimo-ic">🔒</span>
+      <p><strong>Privacidade total:</strong> Nenhum dado pessoal é guardado. O sistema registra apenas o tipo do relato, a localização e o horário. Seu nome nunca aparece em lugar nenhum.</p>
+    </div>
+
+    <a href="https://t.me/RedeSeguraSaoSebastiao" class="btn-espaco" target="_blank">
+      💜 Fazer um relato agora
+    </a>
+  </div>
+</section>
+
+<!-- MAPA -->
+<section class="mapa-secao" id="mapa">
+  <div class="secao" style="padding-bottom:32px;">
+    <div class="secao-inner">
+      <p class="secao-label">Mapa em tempo real</p>
+      <h2>Veja o que está<br><em>acontecendo agora.</em></h2>
+      <p class="lead">Atualizado a cada 30 segundos. Alertas gerais em vermelho, relatos do Espaço Seguro em roxo.</p>
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <div id="mapa"></div>
+    <div class="mapa-ctrl">
+      <strong>Filtrar</strong>
+      <label><input type="checkbox" id="chk-g" checked><span class="dot dg"></span> Alertas gerais</label>
+      <label><input type="checkbox" id="chk-m" checked><span class="dot dm"></span> Espaço Seguro</label>
+    </div>
+  </div>
+
+  <div class="mapa-leg">
+    <div class="leg"><span class="dot dg"></span> Alerta confirmado</div>
+    <div class="leg"><span class="dot" style="background:#888"></span> Alerta pendente</div>
+    <div class="leg"><span class="dot dm"></span> Relato feminino</div>
+    <div class="leg"><span class="dot" style="background:#C2185B"></span> SOS</div>
+  </div>
+</section>
+
+<!-- COMO USAR O BOT -->
+<section class="secao bot" id="bot">
+  <div class="secao-inner">
+    <p class="secao-label">Como usar o bot</p>
+    <h2>Dois minutos<br><em>e você já faz parte.</em></h2>
+    <p class="lead">Qualquer pessoa com Telegram pode participar. Veja como é simples.</p>
+
+    <div class="bot-grid">
+      <div class="fluxo">
+        <div class="step">
+          <div class="step-ic">1️⃣</div>
+          <div>
+            <h4>Abra o Telegram</h4>
+            <p>Pesquise o bot pelo nome ou clique no link de convite do grupo da sua rua.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-ic">2️⃣</div>
+          <div>
+            <h4>Mande o comando</h4>
+            <p>Use /alerta seguido do que você viu. Ex: /alerta Homem com comportamento suspeito.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-ic">3️⃣</div>
+          <div>
+            <h4>Envie a localização</h4>
+            <p>O bot vai pedir sua localização — é só apertar o botão que aparece. Ela marca o ponto exato no mapa.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-ic rosa">✅</div>
+          <div>
+            <h4>Pronto! A rede foi avisada</h4>
+            <p>Todos no canal recebem o alerta em segundos. Você ajudou quem está por perto.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmds">
+        <h3>Comandos do bot</h3>
+        <div class="cmd">
+          <span class="cmd-tag">/alerta</span>
+          <p>Reporta uma situação suspeita ou ocorrência para a rede geral de moradores.</p>
+        </div>
+        <div class="cmd">
+          <span class="cmd-tag r">/registrar</span>
+          <p>Abre o Espaço Seguro para mulheres — relato anônimo de locais inseguros.</p>
+        </div>
+        <div class="cmd">
+          <span class="cmd-tag">/espaco</span>
+          <p>Atalho para o Espaço Seguro — mesmo que /registrar.</p>
+        </div>
+        <div class="cmd" style="margin-top:16px; background:var(--lilas-cl); border-color:rgba(139,94,158,0.18);">
+          <span style="font-size:1.1rem; flex-shrink:0;">💡</span>
+          <p style="color:var(--lilas);">Qualquer outra mensagem e o bot mostra todas as opções disponíveis.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FRASE ACOLHEDORA -->
+<section class="secao frase">
+  <div class="frase-inner">
+    <blockquote>"Nenhuma mulher deveria ter medo de voltar para casa. E nenhum relato deveria ficar <em>sem ser ouvido.</em>"</blockquote>
+    <p>Este projeto foi criado por jovens de São Sebastião para cuidar de São Sebastião. Cada relato que chega aqui faz diferença para a pessoa que vem depois.</p>
+    <div style="margin-top:36px;">
+      <a href="https://t.me/RedeSeguraSaoSebastiao" class="btn-p" target="_blank">💜 Participar agora</a>
+    </div>
+  </div>
+</section>
+
+<!-- RODAPÉ -->
+<footer>
+  <p><strong>Rede de Segurança Pública — São Sebastião</strong></p>
+  <p>Projeto desenvolvido por alunos da Liga Jovem Sebrae 2026</p>
+  <p style="margin-top:10px;">Bot no Telegram · Firebase · Mapa OpenStreetMap</p>
+</footer>
+
+<!-- LEAFLET -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const FB = "https://seguranca-sao-sebastiao-dee0a-default-rtdb.firebaseio.com";
+
+  const mapa = L.map("mapa").setView([-15.8940, -47.7789], 14);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap"
+  }).addTo(mapa);
+
+  function ic(cor, emoji) {
+    return L.divIcon({
+      html: `<div style="background:${cor};width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.22)"><span style="transform:rotate(45deg);font-size:15px">${emoji}</span></div>`,
+      className:"", iconSize:[34,34], iconAnchor:[17,34]
+    });
+  }
+  const icG  = ic("#e74c3c","🚨");
+  const icP  = ic("#999",   "⏳");
+  const icM  = ic("#8B5E9E","🚺");
+  const icS  = ic("#C2185B","🆘");
+
+  const camG = L.layerGroup().addTo(mapa);
+  const camM = L.layerGroup().addTo(mapa);
+
+  async function carregarG() {
+    try {
+      const d = await (await fetch(FB+"/alertas.json")).json();
+      camG.clearLayers();
+      if (!d) return;
+      Object.values(d).forEach(a => {
+        if (!a.lat||!a.lng) return;
+        const i = a.status==="confirmado" ? icG : icP;
+        L.marker([a.lat,a.lng],{icon:i})
+          .bindPopup(`<b>🚨 ${a.descricao}</b><br>🕐 ${a.hora} · ${a.data}<br>✅ ${a.confirmacoes||0} confirmações`)
+          .addTo(camG);
+      });
+    } catch(e){}
+  }
+
+  async function carregarM() {
+    try {
+      const d = await (await fetch(FB+"/alertas_mulheres.json")).json();
+      camM.clearLayers();
+      if (!d) return;
+      Object.values(d).forEach(a => {
+        if (!a.lat||!a.lng) return;
+        const i = (a.categoria||"").includes("ajuda") ? icS : icM;
+        L.marker([a.lat,a.lng],{icon:i})
+          .bindPopup(`<b>🚺 ${a.categoria||"Relato"}</b><br>🕐 ${a.hora} · ${a.data}<br><i>Relato anônimo</i>`)
+          .addTo(camM);
+      });
+    } catch(e){}
+  }
+
+  document.getElementById("chk-g").addEventListener("change", e =>
+    e.target.checked ? mapa.addLayer(camG) : mapa.removeLayer(camG));
+  document.getElementById("chk-m").addEventListener("change", e =>
+    e.target.checked ? mapa.addLayer(camM) : mapa.removeLayer(camM));
+
+  carregarG(); carregarM();
+  setInterval(carregarG, 30000);
+  setInterval(carregarM, 30000);
+</script>
+</body>
+</html>
