@@ -333,6 +333,17 @@ canvas{display:block;width:100%}
 .reg-fab:hover{background:#7A5190;transform:translateY(-1px)}
 .reg-sub{font-size:.59rem;opacity:.75;font-weight:400;letter-spacing:.01em}
 
+.sos-fab{
+  position:fixed;bottom:90px;right:calc(var(--strip) + 168px);z-index:800;
+  background:linear-gradient(135deg,#E53935,#C62828);color:#fff;border:none;border-radius:100px;
+  padding:10px 20px;font-size:.82rem;font-weight:700;letter-spacing:.04em;
+  cursor:pointer;box-shadow:0 3px 16px rgba(229,57,53,.5);
+  display:flex;align-items:center;gap:7px;
+  transition:all .2s;animation:sos-pd 2s ease-in-out infinite;
+}
+.sos-fab:hover{transform:translateY(-1px);box-shadow:0 5px 22px rgba(229,57,53,.65)}
+.sos-fab .sos-ico{font-size:1.05rem}
+
 /* ═══ MOBILE BOTTOM BAR ═══ */
 .bbar{
   position:fixed;bottom:0;left:0;right:0;z-index:800;
@@ -690,6 +701,11 @@ canvas{display:block;width:100%}
     </div><!-- /g-panel -->
   </div><!-- /gaveta -->
 </div><!-- /stage -->
+
+<!-- SOS (desktop) -->
+<button onclick="acionarSOS()" class="sos-fab">
+  <span class="sos-ico">🆘</span><span>SOS</span>
+</button>
 
 <!-- REGISTRAR (desktop) -->
 <a href="https://t.me/Redesegurasaosebastiao_bot" target="_blank" class="reg-fab">
@@ -1589,9 +1605,11 @@ function acionarSOS(){
       .then(r=>r.json()).then(j=>{
         sosAlertaId=j.name;
         sosAtivo=true;
-        // visual — botão vira "Estou bem"
+        // visual — botões viram "Estou bem"
         const btn=document.querySelector('.bbar-sos');
         if(btn){btn.innerHTML='<span>✅</span><span>Estou bem</span>';btn.style.background='#4A7C6F';}
+        const fab=document.querySelector('.sos-fab');
+        if(fab){fab.innerHTML='<span class="sos-ico">✅</span><span>Estou bem</span>';fab.style.background='#4A7C6F';fab.style.animation='none';}
         toast('verm','🆘 SOS enviado! Rede alertada.','');
         // abre Telegram para confirmar localização
         window.open(`https://t.me/Redesegurasaosebastiao_bot?start=sos`,'_blank');
@@ -1604,6 +1622,8 @@ function cancelarSOS(){
   sosAtivo=false;
   const btn=document.querySelector('.bbar-sos');
   if(btn){btn.innerHTML='<span>🆘</span><span>SOS</span>';btn.style.background='';}
+  const fab=document.querySelector('.sos-fab');
+  if(fab){fab.innerHTML='<span class="sos-ico">🆘</span><span>SOS</span>';fab.style.background='';fab.style.animation='sos-pd 2s ease-in-out infinite';}
   // marcar como resolvido no Firebase
   if(sosAlertaId){
     fetch(`${FB}/alertas/${sosAlertaId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'resolvido'})});
