@@ -35,7 +35,7 @@ const cache = {};
 // PING — mantém o servidor acordado
 // =====================================================
 app.get("/ping", (req, res) => res.send("ok"));
-app.get("/", (req, res) => res.sendFile(__dirname + "/projeto.html"));
+app.get("/", (req, res) => res.sendFile(__dirname + "/index.html"));
 
 const https = require("https");
 setInterval(() => {
