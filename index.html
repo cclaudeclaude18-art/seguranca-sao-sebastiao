@@ -1335,21 +1335,31 @@ function preencherOrigem(inputId) {
   );
 }
 
+const GEOAPIFY_KEY = 'SUA_CHAVE_AQUI';
+
 function autocompleteDestino(val, inputId, listaId) {
   clearTimeout(acTimer);
   const lista = document.getElementById(listaId);
   if (!val || val.length < 3) { lista.style.display = 'none'; return; }
   acTimer = setTimeout(async () => {
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ', São Sebastião, DF, Brasil')}&format=json&limit=5`);
-      const d = await r.json();
-      if (!d.length) { lista.style.display = 'none'; return; }
-      lista.innerHTML = d.map(p =>
-        `<div class="ac-item" data-name="${esc(p.display_name)}" onclick="selecionarDestino('${inputId}','${listaId}',this)">${esc(p.display_name)}</div>`
-      ).join('');
+      const url = `https://api.geoapify.com/v1/geocode/autocomplete`
+        + `?text=${encodeURIComponent(val)}`
+        + `&bias=proximity:-47.8,-15.9`
+        + `&filter=countrycode:br`
+        + `&lang=pt`
+        + `&limit=6`
+        + `&apiKey=${GEOAPIFY_KEY}`;
+      const d = await (await fetch(url)).json();
+      const items = d.features || [];
+      if (!items.length) { lista.style.display = 'none'; return; }
+      lista.innerHTML = items.map(f => {
+        const nome = f.properties.formatted || f.properties.address_line1 || '';
+        return `<div class="ac-item" data-name="${nome}" data-lat="${f.properties.lat}" data-lng="${f.properties.lon}" onclick="selecionarDestino('${inputId}','${listaId}',this)">${nome}</div>`;
+      }).join('');
       lista.style.display = 'block';
     } catch { lista.style.display = 'none'; }
-  }, 400);
+  }, 350);
 }
 
 function selecionarDestino(inputId, listaId, el) {
@@ -1463,8 +1473,16 @@ async function calcRota() {
 }
 
 async function geocode(txt){
-  const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(txt+', São Sebastião, DF, Brasil')}&format=json&limit=1`);
-  const d=await r.json();return d.length?[parseFloat(d[0].lat),parseFloat(d[0].lon)]:null;
+  const url = `https://api.geoapify.com/v1/geocode/search`
+    + `?text=${encodeURIComponent(txt + ', São Sebastião, DF, Brasil')}`
+    + `&bias=proximity:-47.8,-15.9`
+    + `&filter=countrycode:br`
+    + `&lang=pt`
+    + `&limit=1`
+    + `&apiKey=${GEOAPIFY_KEY}`;
+  const d = await (await fetch(url)).json();
+  const f = d.features && d.features[0];
+  return f ? [f.properties.lat, f.properties.lon] : null;
 }
 function geoSeg(pLat,pLon,aLat,aLon,bLat,bLon){
   const dx=bLon-aLon,dy=bLat-aLat;if(!dx&&!dy)return geodist(pLat,pLon,aLat,aLon);
